@@ -4,14 +4,9 @@ Este documento define la arquitectura y requerimientos para las Edge Functions d
 
 ## Funciones Planeadas
 
-### 1. `notify-whatsapp`
-- **Propósito**: Enviar notificaciones de WhatsApp a los clientes.
-- **Disparador (Trigger)**: Webhook desde Supabase cuando se actualiza el estado de una `work_order` (ej: "Listo para retirar") o cuando se crea un nuevo aviso.
-- **Flujo**:
-  1. Postgres detecta el cambio de estado (usando Supabase Database Webhooks).
-  2. El Webhook envía un payload HTTP POST a la Edge Function `notify-whatsapp`.
-  3. La función formatea el mensaje y llama a la API del proveedor de WhatsApp (ej. Meta API, Twilio).
-  4. La función actualiza la base de datos (o una tabla de logs) si el envío fue exitoso o falló.
+### 1. `notify-whatsapp` (DESCARTADA -> Movida al Frontend)
+- **Decisión Arquitectónica**: Se resolvió evitar el uso de una Edge Function y servidores Docker para esto por motivos de costo $0 y simplicidad de mantenimiento.
+- **Nueva Solución**: El sistema utilizará **Deep Linking (Enlaces `wa.me`)**. El frontend compilará el mensaje con los datos de la orden y abrirá WhatsApp Web/Desktop en el equipo del usuario para que este lo envíe de forma manual, pero con el texto automatizado.
 
 ### 2. `notify-email`
 - **Propósito**: Enviar correos electrónicos (ej. reportes, comprobantes, recordatorios).
