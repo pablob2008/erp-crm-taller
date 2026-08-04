@@ -1,0 +1,41 @@
+#BASE DE DATOS SUPABASE
+
+## 1. Órdenes:
+- **Número de Órden:** Con formato de salida: ORD-XXX (X = numero correlacional ascendente por cada orden ingresada).
+- **Dispositivo:** Marca y modelo, color, condición estética, accesorios, problema reportado, solución sugerida.
+- **Fecha:** Ingreso, estimado de entrega, fecha entregado, zona horaria segun ubicación.
+- **Pagos y gastos:** Costo estimado, total pagado, total gastado, balance, ingresar pago, ingresar gasto manual o cargar desde lista de stock (en este ultimo caso congelar el costo).
+- **Estados:** Recibido, Esperando Cliente, Esperando Repuesto, Listo para Retirar, Cancelado, Entregado. Agregar auditoria de estados en un pipeline.
+- **Registro de Actividades:** Posibilidad de agregar notas en cada órden, generar tareas y pedidos de compras desde la propia órden.
+
+## 2. Clientes: 
+- **Nombre y Apellido:** Obligatorio.
+- **DNI/CUIT:** Opcional.
+- **Contacto:** Opcional.
+- **Correo:** Opcional.
+- **Domicilio:** Opcional.
+
+## 3. Tareas:
+- **Checklist:** Tareas agregadas manualmente, tareas agregadas directamente desde una órden. 
+
+## 4. Compras:
+- **Checklist:** Compras agregadas manualmente, compras agregadas directamente desde una orden, compras agregadas desde un producto con stock bajo.
+
+## 5. Stock:
+- **Codigo:** posibilidad de agregar un valor alfanumerico o de generar uno aleatorio.
+- **Nombre/descripción**
+- **Cantidad**
+- **Costo**
+- **Precio**
+
+## 6. Caja
+- **Ingresos:** Agregar ingresos manuales, ventas con lectura desde el stock, cobros desde las órdenes.
+- **Descuentos:** Posibilidad de agregar descuentos manuales o porcentuales.
+- **Gastos:** Agregar gastos manuales, registrar compras de productos desde lista de compras, expensas (luz, internet, alquiler, contador, rentas, monotributo)
+- **Medios de pago:** Efectivo (por defecto), QR, Transferencias, Tarjeta.
+
+## 7. Ajustes:
+- **Sucursal** Nombre del taller, Dirección, Celular, Email, CUIT, Logo y favicon (subir archivos directamente desde el panel a Supabase storage).
+- **Condiciones del servicio:** Cuadro para agregar manualmente las condiciones de servicio y garantía.
+- **Opciones de impresión:** Checklist con opciones disponible sobre la informacion a mostrar en la plantilla de impresion de las ordenes, para de esta manera tener control sobre que informacion quiero mostrarle al cliente sin que se filtren datos de control interno como el costo de los repuestos por ejemplo.
+- **Roles:** Para el Admin todas las opciones dispnibles y desbloqueadas, y un panel de control de usuarios habilitados y posibilidad de asignar los roles de cada uno junto con un checklist para habilitar o desabilitar opciones para modificar/eliminar datos sensibles de las ordenes, stock, caja, permisos o ajustes.

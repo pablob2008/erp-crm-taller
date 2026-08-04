@@ -1,0 +1,64 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Supabase PostgreSQL, npm
+  Architecture: Canonical relational database schema (Supabase) with multi-branch isolation (RLS), state auditing, inventory synchronization, and daily atomic cash accounting.
+  Testing: No testing framework or test runner detected.
+  Style: SQL DDL, PL/pgSQL triggers, constraints, custom ENUM types.
+
+strict_tdd: false
+
+testing:
+  strict_tdd: false
+  detected: "2026-07-29"
+  runner:
+    command: ""
+    framework: "none"
+  layers:
+    unit:
+      available: false
+      tool: ""
+    integration:
+      available: false
+      tool: ""
+    e2e:
+      available: false
+      tool: ""
+  coverage:
+    available: false
+    command: ""
+  quality:
+    linter:
+      available: false
+      command: ""
+    type_checker:
+      available: false
+      command: ""
+    formatter:
+      available: false
+      command: ""
+
+rules:
+  proposal:
+    - Include rollback plan for database migrations or schema mutations
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Document schema modifications, indexes, and triggers with rationale
+    - Include entity-relationship diagrams or details for relational changes
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Include verification scripts/queries for schema updates
+  apply:
+    guidelines:
+      - Preserve schema conventions (naming, types, foreign keys)
+      - Implement migrations and schema updates defensively
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
