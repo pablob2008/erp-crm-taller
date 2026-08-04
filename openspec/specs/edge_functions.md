@@ -13,15 +13,9 @@ Este documento define la arquitectura y requerimientos para las Edge Functions d
 - **Disparador**: Webhook desde la base de datos o llamada directa desde el cliente.
 - **Flujo**: Similar a WhatsApp, utiliza un servicio externo (Resend, SendGrid) para despachar el correo.
 
-### 3. `generate-pdf`
-- **Propósito**: Generar documentos PDF para imprimir (Tickets de venta, Órdenes de ingreso).
-- **Disparador**: Llamada HTTP directa desde el Frontend (`supabase.functions.invoke`).
-- **Flujo**:
-  1. El Frontend envía el ID de la orden (`work_order_id`) o el movimiento (`cash_movement_id`).
-  2. La función consulta la base de datos para obtener los datos necesarios (usando el Service Role o el token del usuario).
-  3. Renderiza un HTML/Plantilla con los datos.
-  4. Utiliza una librería o servicio para convertir el HTML a PDF (ej. Puppeteer, o un servicio cloud).
-  5. Devuelve el PDF al frontend para su descarga/impresión.
+### 3. `generate-pdf` (DESCARTADA -> Movida al Frontend)
+- **Decisión Arquitectónica**: Como el objetivo es entregar un comprobante en el momento (impreso o exportado a PDF manualmente para enviar), la generación nativa en backend resulta un sobre-esfuerzo innecesario y costoso a nivel servidor.
+- **Nueva Solución**: El Frontend contará con vistas de impresión en HTML/CSS y utilizará la función nativa del navegador (`window.print()`). Si el usuario necesita el archivo digital, puede seleccionar "Guardar como PDF" en el diálogo del sistema operativo.
 
 ### 4. `arca-integration`
 - **Propósito**: Facturación electrónica. (Ver `arca_integration.md` para más detalles).
