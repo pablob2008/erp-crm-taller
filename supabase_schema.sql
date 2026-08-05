@@ -1091,3 +1091,14 @@ WITH CHECK (
     branch_id = public.get_user_branch_id()
 );
 
+-- =======================================================================================
+-- ALMACENAMIENTO SEGURO (STORAGE) PARA CERTIFICADOS ARCA
+-- =======================================================================================
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('arca_certs', 'arca_certs', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Por defecto Supabase bloquea todo acceso. Esto asegura que nadie (ni siquiera 
+-- un usuario logueado en el CRM) pueda leer o descargar los certificados .key o .crt
+-- La Edge Function de facturación lo bypasseará usando su token service_role.
+

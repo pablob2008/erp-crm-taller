@@ -8,10 +8,8 @@ Este documento define la arquitectura y requerimientos para las Edge Functions d
 - **Decisión Arquitectónica**: Se resolvió evitar el uso de una Edge Function y servidores Docker para esto por motivos de costo $0 y simplicidad de mantenimiento.
 - **Nueva Solución**: El sistema utilizará **Deep Linking (Enlaces `wa.me`)**. El frontend compilará el mensaje con los datos de la orden y abrirá WhatsApp Web/Desktop en el equipo del usuario para que este lo envíe de forma manual, pero con el texto automatizado.
 
-### 2. `notify-email`
-- **Propósito**: Enviar correos electrónicos (ej. reportes, comprobantes, recordatorios).
-- **Disparador**: Webhook desde la base de datos o llamada directa desde el cliente.
-- **Flujo**: Similar a WhatsApp, utiliza un servicio externo (Resend, SendGrid) para despachar el correo.
+### 2. `notify-email` (DESCARTADA)
+- **Decisión Arquitectónica**: Eliminado a petición del negocio. Se prioriza la comunicación por WhatsApp y la entrega física. Si se requiere email, se manejará de forma 100% manual.
 
 ### 3. `generate-pdf` (DESCARTADA -> Movida al Frontend)
 - **Decisión Arquitectónica**: Como el objetivo es entregar un comprobante en el momento (impreso o exportado a PDF manualmente para enviar), la generación nativa en backend resulta un sobre-esfuerzo innecesario y costoso a nivel servidor.
