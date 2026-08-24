@@ -117,6 +117,10 @@ export default function DashboardLayout() {
             </li>
           </ul>
         </nav>
+        {/* Build version indicator */}
+        <div className="mt-auto px-6 py-4 text-xs font-mono text-muted-foreground/60 text-center">
+          Build: {import.meta.env.VITE_APP_VERSION || 'local'}
+        </div>
       </aside>
 
       {/* Main Content */}
