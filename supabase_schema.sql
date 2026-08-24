@@ -15,6 +15,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TYPE public.user_role AS ENUM ('admin', 'technician', 'cashier', 'receptionist');
 
 CREATE TYPE public.order_status AS ENUM (
+    'quotation',         -- Presupuestado (solo cotización)
     'received',          -- Recibido
     'waiting_client',    -- Esperando Cliente
     'waiting_parts',     -- Esperando Repuesto
@@ -168,6 +169,7 @@ CREATE TABLE public.work_order_items (
     cost_price NUMERIC(12,2) NOT NULL DEFAULT 0, -- Costo CONGELADO al momento del uso
     unit_price NUMERIC(12,2) NOT NULL DEFAULT 0,
     total_price NUMERIC(12,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -659,6 +661,14 @@ FOR ALL TO authenticated
 USING (EXISTS (
     SELECT 1 FROM public.work_orders wo
     WHERE wo.id = work_order_items.work_order_id
+    AND wo.branch_id = public.get_user_branch_id()
+));
+
+CREATE POLICY "Aislamiento Notas" ON public.work_order_notes
+FOR ALL TO authenticated
+USING (EXISTS (
+    SELECT 1 FROM public.work_orders wo
+    WHERE wo.id = work_order_notes.work_order_id
     AND wo.branch_id = public.get_user_branch_id()
 ));
 

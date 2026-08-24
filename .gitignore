@@ -109,3 +109,7 @@ Thumbs.db
 supabase/.temp/
 supabase/.branch/
 supabase/dump/
+
+*.key
+*.crt
+*.csr

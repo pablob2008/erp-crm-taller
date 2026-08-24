@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 89%;
+    --foreground: 240 10% 3.9%;
+    --card: 220 20% 89%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 220 20% 89%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: transparent;
+    --input: 240 5.9% 90%;
+    --ring: transparent;
+    --radius: 1rem;
+    --neu-light: #ffffff;
+    --neu-dark: #b8bec7;
+    --shadow-neu: 4px 4px 14px #c2c7ce, -4px -4px 14px #ffffff;
+    --shadow-neu-inset: inset 3px 3px 6px #c2c7ce, inset -3px -3px 6px #ffffff;
+    --kpi-blue: 217 91% 60%;
+    --kpi-green: 142 71% 45%;
+    --kpi-amber: 38 92% 50%;
+    --kpi-red: 0 84% 60%;
+  }
+
+  .dark {
+    --background: 228 24% 15%;
+    --foreground: 0 0% 98%;
+    --card: 228 24% 15%;
+    --card-foreground: 0 0% 98%;
+    --popover: 228 24% 15%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: transparent;
+    --input: 240 3.7% 15.9%;
+    --ring: transparent;
+    --neu-light: #272b3d;
+    --neu-dark: #151720;
+    --shadow-neu: 4px 4px 14px #151720, -4px -4px 14px #272b3d;
+    --shadow-neu-inset: inset 3px 3px 6px #151720, inset -3px -3px 6px #272b3d;
+    --kpi-blue: 217 91% 65%;
+    --kpi-green: 142 71% 50%;
+    --kpi-amber: 38 92% 55%;
+    --kpi-red: 0 84% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ── Print styles ──────────────────────────────────────────────────────────── */
+@media print {
+  /* A4 page setup */
+  @page {
+    size: A4 portrait;
+    margin: 15mm 15mm 15mm 15mm;
+  }
+
+  /* Reset body for print */
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Hide everything that should not appear on the printed ticket */
+  .no-print,
+  aside,
+  header,
+  nav,
+  [data-radix-popper-content-wrapper],
+  [role="dialog"] {
+    display: none !important;
+  }
+
+  /* Hide the screen-only page layout wrapper */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide the screen content of WorkOrderDetailsPage (tabs, buttons, cards) */
+  /* Using .no-print class on those wrappers in the JSX */
+
+  /* Show the print-only ticket block */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Prevent unwanted page breaks inside ticket sections */
+  .print-only > div {
+    page-break-inside: avoid;
+  }
+}
+
+/* Utility: elements hidden on screen but visible when printing */
+.print-only {
+  display: none;
+}
