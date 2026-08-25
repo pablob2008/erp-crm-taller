@@ -105,7 +105,7 @@ function AddExpenseDialog({ open, onClose, onSubmit }: AddExpenseDialogProps) {
                 <SelectItem value="cash">Efectivo</SelectItem>
                 <SelectItem value="transfer">Transferencia</SelectItem>
                 <SelectItem value="card">Tarjeta</SelectItem>
-                <SelectItem value="other">Otro</SelectItem>
+                <SelectItem value="qr">QR / Billetera</SelectItem>
               </SelectContent>
             </Select>
             {errors.method && <p className="text-xs text-destructive">{errors.method}</p>}
@@ -251,7 +251,7 @@ function DeliverOrderDialog({ open, order, onClose, onSubmit }: DeliverOrderDial
                   <SelectItem value="cash">Efectivo</SelectItem>
                   <SelectItem value="transfer">Transferencia</SelectItem>
                   <SelectItem value="card">Tarjeta</SelectItem>
-                  <SelectItem value="other">QR / Otro</SelectItem>
+                  <SelectItem value="qr">QR / Billetera</SelectItem>
                 </SelectContent>
               </Select>
               {errors.method && <p className="text-xs text-destructive">{errors.method}</p>}
