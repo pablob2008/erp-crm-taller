@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Users,
   Package,
+  ShoppingCart,
   DollarSign,
   Settings,
   Bell,
@@ -104,6 +105,12 @@ export default function DashboardLayout() {
               </Link>
             </li>
             <li>
+              <Link to="/pos" className={navLinkClass("/pos")} onClick={() => setIsMobileMenuOpen(false)}>
+                <ShoppingCart className="h-4 w-4" />
+                Ventas
+              </Link>
+            </li>
+            <li>
               <Link to="/finance" className={navLinkClass("/finance")} onClick={() => setIsMobileMenuOpen(false)}>
                 <DollarSign className="h-4 w-4" />
                 Caja / Finanzas
@@ -167,12 +174,14 @@ export default function DashboardLayout() {
       {/* Floating Action Button (FAB) */}
       <Link
         to="/orders/new"
-        className="fixed bottom-8 right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+        className="fixed bottom-8 right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95 no-print"
       >
         <Plus className="h-6 w-6" />
       </Link>
 
-      <Toaster />
+      <div className="no-print">
+        <Toaster />
+      </div>
     </div>
   )
 }
