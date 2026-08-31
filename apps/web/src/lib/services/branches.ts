@@ -25,7 +25,9 @@ export interface BranchInfo {
   name: string;
   address: string | null;
   phone: string | null;
+  email: string | null;
   tax_id: string | null;
+  logo_url: string | null;
   service_conditions: string | null;
   print_settings: {
     show_costs?: boolean;
@@ -34,6 +36,7 @@ export interface BranchInfo {
     [key: string]: unknown;
   } | null;
 }
+
 
 /**
  * Fetches branch metadata needed for the printable Workshop Ticket.
@@ -45,7 +48,7 @@ export async function getBranchInfo(
 ): Promise<BranchInfo | null> {
   const { data, error } = await supabaseClient
     .from('branches')
-    .select('id, name, address, phone, tax_id, service_conditions, print_settings')
+    .select('id, name, address, phone, email, tax_id, logo_url, service_conditions, print_settings')
     .eq('id', branchId)
     .single()
 

@@ -94,7 +94,9 @@
   header,
   nav,
   [data-radix-popper-content-wrapper],
-  [role="dialog"] {
+  [role="dialog"],
+  [data-sonner-toaster],
+  [role="region"][aria-label="Notifications"] {
     display: none !important;
   }
 
@@ -122,3 +124,17 @@
 .print-only {
   display: none;
 }
+
+/* ── Ticket (80mm thermal) named page rule ────────────────────────────────── */
+/* NOTE: @page named rules are best-supported in Chromium (target POS env).   */
+/* Firefox/Safari may fall back to A4 page size — acceptable for this scope.  */
+@page ticket {
+  size: 80mm auto; /* 80mm width, auto height for thermal paper */
+  margin: 2mm;
+}
+
+/* When ticket format is active, the print-only container uses the named page */
+.print-only--ticket {
+  page: ticket;
+}
+

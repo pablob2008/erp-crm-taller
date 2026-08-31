@@ -43,6 +43,8 @@ CREATE TYPE public.payment_method AS ENUM ('cash', 'qr', 'transfer', 'card');
 
 CREATE TYPE public.discount_type AS ENUM ('none', 'fixed', 'percentage');
 
+CREATE TYPE public.sale_status AS ENUM ('completed', 'voided');
+
 -- ============================================================================
 -- 2. TABLAS DEL SISTEMA
 -- ============================================================================
@@ -270,6 +272,45 @@ CREATE TABLE public.employee_invitations (
     expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '7 days',
     accepted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- O. VENTAS POS (PUNTO DE VENTA)
+CREATE TABLE public.sales (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    branch_id           UUID NOT NULL REFERENCES public.branches(id) ON DELETE CASCADE,
+    cash_register_id    UUID REFERENCES public.cash_registers(id) ON DELETE SET NULL,
+    cash_movement_id    UUID REFERENCES public.cash_movements(id) ON DELETE SET NULL,
+    work_order_id       UUID REFERENCES public.work_orders(id) ON DELETE SET NULL,
+    payment_method      public.payment_method NOT NULL DEFAULT 'cash',
+    subtotal            NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (subtotal >= 0),
+    discount_type       public.discount_type NOT NULL DEFAULT 'none',
+    discount_value      NUMERIC(12,2) NOT NULL DEFAULT 0,
+    total               NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (total >= 0),
+    status              public.sale_status NOT NULL DEFAULT 'completed',
+    customer_id         UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+    -- Fiscal / ARCA readiness fields
+    customer_doc_type   VARCHAR(20) DEFAULT '99', -- DNI (96), CUIT (80), Consumidor Final (99)
+    customer_doc_number VARCHAR(50),
+    invoice_type        VARCHAR(10),              -- FA_A, FA_B, FA_C, TKT (null = not invoiced)
+    invoice_number      VARCHAR(50),              -- e.g. 0001-00001234
+    cae                 VARCHAR(50),              -- CAE provided by ARCA/AFIP
+    cae_expires_at      DATE,
+    afip_qr_data        TEXT,                     -- Base64 encoded payload for fiscal QR reprint
+    created_by          UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- P. LÍNEAS DE VENTA POS (ITEMS DEL TICKET)
+CREATE TABLE public.sale_items (
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sale_id           UUID NOT NULL REFERENCES public.sales(id) ON DELETE CASCADE,
+    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE SET NULL,
+    description       VARCHAR(255) NOT NULL,
+    quantity          NUMERIC(10,2) NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    unit_price        NUMERIC(12,2) NOT NULL DEFAULT 0,
+    tax_rate          NUMERIC(5,2) NOT NULL DEFAULT 21.00, -- Alícuota IVA (21.00%, 10.50%, 0.00%)
+    total_price       NUMERIC(12,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================================
@@ -606,6 +647,39 @@ AFTER UPDATE ON public.inventory_items
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_alert_low_stock_to_purchases();
 
+
+-- H. Deducción de Stock en Venta POS (INSERT / DELETE en sale_items)
+CREATE OR REPLACE FUNCTION public.fn_deduct_stock_on_sale_item()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- 1. CASO INSERCIÓN: descontar stock del inventario
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.inventory_item_id IS NOT NULL THEN
+            UPDATE public.inventory_items
+            SET quantity = quantity - NEW.quantity
+            WHERE id = NEW.inventory_item_id;
+        END IF;
+        RETURN NEW;
+
+    -- 2. CASO ELIMINACIÓN (anulación de venta): restaurar stock
+    ELSIF TG_OP = 'DELETE' THEN
+        IF OLD.inventory_item_id IS NOT NULL THEN
+            UPDATE public.inventory_items
+            SET quantity = quantity + OLD.quantity
+            WHERE id = OLD.inventory_item_id;
+        END IF;
+        RETURN OLD;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE TRIGGER trg_deduct_stock_on_sale_item
+AFTER INSERT OR DELETE ON public.sale_items
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_deduct_stock_on_sale_item();
+
 -- ============================================================================
 -- 4. SEGURIDAD Y AISLAMIENTO DE DATOS (ROW LEVEL SECURITY - RLS)
 -- ============================================================================
@@ -631,6 +705,8 @@ ALTER TABLE public.purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cash_registers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cash_movements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.employee_invitations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sale_items ENABLE ROW LEVEL SECURITY;
 
 -- DEFINICIÓN DE POLÍTICAS RLS (Tenant Isolation por branch_id)
 CREATE POLICY "Aislamiento Sucursales" ON public.branches
@@ -697,6 +773,19 @@ FOR ALL TO authenticated
 USING (branch_id = public.get_user_branch_id())
 WITH CHECK (branch_id = public.get_user_branch_id());
 
+CREATE POLICY "Aislamiento Ventas" ON public.sales
+FOR ALL TO authenticated
+USING (branch_id = public.get_user_branch_id())
+WITH CHECK (branch_id = public.get_user_branch_id());
+
+CREATE POLICY "Aislamiento Items de Ventas" ON public.sale_items
+FOR ALL TO authenticated
+USING (EXISTS (
+    SELECT 1 FROM public.sales s
+    WHERE s.id = sale_items.sale_id
+    AND s.branch_id = public.get_user_branch_id()
+));
+
 -- ============================================================================
 -- 4.1. ÍNDICES DE RENDIMIENTO Y ESCALABILIDAD (MULTITENANT & RLS INDEXES)
 -- ============================================================================
@@ -726,6 +815,13 @@ CREATE INDEX IF NOT EXISTS idx_purchases_work_order_id ON public.purchases(work_
 CREATE INDEX IF NOT EXISTS idx_cash_registers_branch_closed ON public.cash_registers(branch_id, is_closed);
 CREATE INDEX IF NOT EXISTS idx_cash_movements_branch_register ON public.cash_movements(branch_id, cash_register_id);
 CREATE INDEX IF NOT EXISTS idx_cash_movements_work_order ON public.cash_movements(work_order_id);
+
+CREATE INDEX IF NOT EXISTS idx_sales_branch_id ON public.sales(branch_id);
+CREATE INDEX IF NOT EXISTS idx_sales_branch_created ON public.sales(branch_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sales_work_order_id ON public.sales(work_order_id);
+CREATE INDEX IF NOT EXISTS idx_sales_cash_movement_id ON public.sales(cash_movement_id);
+CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON public.sale_items(sale_id);
+CREATE INDEX IF NOT EXISTS idx_sale_items_inventory_item_id ON public.sale_items(inventory_item_id);
 
 -- ============================================================================
 -- 5. PROCEDIMIENTOS ALMACENADOS DE FLUJO DE TRABAJO (RPCs)
