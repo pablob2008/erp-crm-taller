@@ -2,6 +2,116 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+export interface DateRange {
+  from: string; // ISO string (start of period, inclusive)
+  to: string;   // ISO string (end of period, inclusive)
+}
+
+export type DatePreset = "today" | "yesterday" | "this_week" | "this_month" | "last_30_days" | "custom"
+
+export function getPresetRange(preset: DatePreset): DateRange {
+  const now = new Date()
+
+  if (preset === "today") {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    return { from: start.toISOString(), to: end.toISOString() }
+  }
+
+  if (preset === "yesterday") {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0)
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999)
+    return { from: start.toISOString(), to: end.toISOString() }
+  }
+
+  if (preset === "this_week") {
+    const day = now.getDay()
+    const diff = (day === 0 ? -6 : 1) - day // Monday
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 0, 0, 0, 0)
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    return { from: start.toISOString(), to: end.toISOString() }
+  }
+
+  if (preset === "this_month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+    return { from: start.toISOString(), to: end.toISOString() }
+  }
+
+  if (preset === "last_30_days") {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0, 0)
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    return { from: start.toISOString(), to: end.toISOString() }
+  }
+
+  // fallback to today
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+  return { from: start.toISOString(), to: end.toISOString() }
+}
+
+export interface OperationalKPIsData {
+  totalRevenue: number;
+  ticketCount: number;
+  readyOrDeliveredOrders: number;
+}
+
+export interface SalesHistoryItem {
+  id: string;
+  created_at: string;
+  total: number;
+  payment_method: string;
+  status: string;
+  customer_name?: string | null;
+  customer_doc_number?: string | null;
+  items_count?: number;
+  cae?: string | null;
+  invoice_type?: string | null;
+  invoice_number?: string | null;
+}
+
+export interface UnbilledSaleItem {
+  id: string;
+  created_at: string;
+  total: number;
+  payment_method: string;
+  status: string;
+  customer_name?: string | null;
+  customer_doc_number?: string | null;
+  work_order_id?: string | null;
+}
+
+export interface UnbilledOrderItem {
+  id: string;
+  order_number: string;
+  created_at: string;
+  total: number;
+  balance: number;
+  status: string;
+  customer_name?: string | null;
+}
+
+export interface PendingDebtItem {
+  id: string;
+  order_number: string;
+  created_at: string;
+  total: number;
+  balance: number;
+  status: string;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  device_brand?: string | null;
+  device_model?: string | null;
+}
+
+export interface DashboardMetrics {
+  kpis: OperationalKPIsData;
+  salesHistory: SalesHistoryItem[];
+  unbilledSales: UnbilledSaleItem[];
+  unbilledOrders: UnbilledOrderItem[];
+  pendingDebt: PendingDebtItem[];
+}
+
 export interface PipelineEntry {
   status: string
   count: number
@@ -168,3 +278,196 @@ export async function fetchDashboardData(
     recentActivity,
   }
 }
+
+function formatCustomerName(cust: unknown): string | null {
+  if (!cust) return null
+  const customer = Array.isArray(cust) ? cust[0] : cust
+  if (!customer) return null
+  const { first_name, last_name } = customer as { first_name?: string; last_name?: string }
+  const name = [first_name, last_name].filter(Boolean).join(" ")
+  return name.length > 0 ? name : null
+}
+
+/**
+ * Fetches operational and financial dashboard metrics.
+ * - Filtered by dateRange: Sales History, Total Revenue, Ticket Count, Ready/Delivered Orders.
+ * - Statefully unfiltered by date: Unbilled Sales, Unbilled Work Orders, Pending Debt.
+ */
+export async function fetchDashboardMetrics(
+  supabase: SupabaseClient,
+  branchId: string,
+  dateRange: DateRange
+): Promise<DashboardMetrics> {
+  const [
+    salesRes,
+    readyOrDeliveredOrdersRes,
+    unbilledSalesRes,
+    unbilledOrdersRes,
+    pendingDebtRes,
+  ] = await Promise.all([
+    // 1. Sales history & KPI revenue / tickets in date range
+    supabase
+      .from("sales")
+      .select(`
+        id,
+        created_at,
+        total,
+        payment_method,
+        status,
+        customer_doc_number,
+        invoice_type,
+        invoice_number,
+        cae,
+        customers ( first_name, last_name ),
+        sale_items ( id )
+      `)
+      .eq("branch_id", branchId)
+      .gte("created_at", dateRange.from)
+      .lte("created_at", dateRange.to)
+      .order("created_at", { ascending: false }),
+
+    // 2. Ready or Delivered orders count in date range
+    supabase
+      .from("work_orders")
+      .select("id", { count: "exact", head: true })
+      .eq("branch_id", branchId)
+      .in("status", ["ready_for_pickup", "delivered"])
+      .gte("created_at", dateRange.from)
+      .lte("created_at", dateRange.to),
+
+    // 3. Unbilled sales (stateful, unfiltered by date)
+    supabase
+      .from("sales")
+      .select(`
+        id,
+        created_at,
+        total,
+        payment_method,
+        status,
+        customer_doc_number,
+        work_order_id,
+        customers ( first_name, last_name )
+      `)
+      .eq("branch_id", branchId)
+      .is("cae", null)
+      .neq("status", "voided")
+      .order("created_at", { ascending: false }),
+
+    // 4. Unbilled work orders (stateful, unfiltered by date)
+    supabase
+      .from("work_orders")
+      .select(`
+        id,
+        order_number,
+        created_at,
+        estimated_cost,
+        balance,
+        status,
+        customers ( first_name, last_name )
+      `)
+      .eq("branch_id", branchId)
+      .neq("status", "cancelled")
+      .order("created_at", { ascending: false }),
+
+    // 5. Pending debt work orders (stateful, unfiltered by date)
+    supabase
+      .from("work_orders")
+      .select(`
+        id,
+        order_number,
+        created_at,
+        estimated_cost,
+        balance,
+        status,
+        device_brand,
+        device_model,
+        customers ( first_name, last_name, phone )
+      `)
+      .eq("branch_id", branchId)
+      .gt("balance", 0)
+      .in("status", ["ready_for_pickup", "delivered"])
+      .order("created_at", { ascending: false }),
+  ])
+
+  if (salesRes.error) throw salesRes.error
+  if (readyOrDeliveredOrdersRes.error) throw readyOrDeliveredOrdersRes.error
+  if (unbilledSalesRes.error) throw unbilledSalesRes.error
+  if (unbilledOrdersRes.error) throw unbilledOrdersRes.error
+  if (pendingDebtRes.error) throw pendingDebtRes.error
+
+  const rawSales = (salesRes.data ?? []) as any[]
+  const salesHistory: SalesHistoryItem[] = rawSales.map((row) => ({
+    id: row.id,
+    created_at: row.created_at,
+    total: Number(row.total ?? 0),
+    payment_method: row.payment_method,
+    status: row.status,
+    customer_name: formatCustomerName(row.customers),
+    customer_doc_number: row.customer_doc_number,
+    items_count: Array.isArray(row.sale_items) ? row.sale_items.length : 0,
+    cae: row.cae,
+    invoice_type: row.invoice_type,
+    invoice_number: row.invoice_number,
+  }))
+
+  const totalRevenue = rawSales.reduce((acc, s) => {
+    if (s.status === "voided") return acc
+    return acc + Number(s.total ?? 0)
+  }, 0)
+
+  const ticketCount = rawSales.length
+  const readyOrDeliveredOrders = readyOrDeliveredOrdersRes.count ?? 0
+
+  const rawUnbilledSales = (unbilledSalesRes.data ?? []) as any[]
+  const unbilledSales: UnbilledSaleItem[] = rawUnbilledSales.map((row) => ({
+    id: row.id,
+    created_at: row.created_at,
+    total: Number(row.total ?? 0),
+    payment_method: row.payment_method,
+    status: row.status,
+    customer_name: formatCustomerName(row.customers),
+    customer_doc_number: row.customer_doc_number,
+    work_order_id: row.work_order_id,
+  }))
+
+  const rawUnbilledOrders = (unbilledOrdersRes.data ?? []) as any[]
+  const unbilledOrders: UnbilledOrderItem[] = rawUnbilledOrders.map((row) => ({
+    id: row.id,
+    order_number: row.order_number,
+    created_at: row.created_at,
+    total: Number(row.estimated_cost ?? 0),
+    balance: Number(row.balance ?? 0),
+    status: row.status,
+    customer_name: formatCustomerName(row.customers),
+  }))
+
+  const rawPendingDebt = (pendingDebtRes.data ?? []) as any[]
+  const pendingDebt: PendingDebtItem[] = rawPendingDebt.map((row) => {
+    const cust = Array.isArray(row.customers) ? row.customers[0] : row.customers
+    return {
+      id: row.id,
+      order_number: row.order_number,
+      created_at: row.created_at,
+      total: Number(row.estimated_cost ?? 0),
+      balance: Number(row.balance ?? 0),
+      status: row.status,
+      customer_name: formatCustomerName(row.customers),
+      customer_phone: cust?.phone ?? null,
+      device_brand: row.device_brand ?? null,
+      device_model: row.device_model ?? null,
+    }
+  })
+
+  return {
+    kpis: {
+      totalRevenue,
+      ticketCount,
+      readyOrDeliveredOrders,
+    },
+    salesHistory,
+    unbilledSales,
+    unbilledOrders,
+    pendingDebt,
+  }
+}
+
