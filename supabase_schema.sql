@@ -549,53 +549,27 @@ FOR EACH ROW
 EXECUTE FUNCTION public.fn_sync_cash_movement_to_work_order();
 
 
--- F. Sincronización de Compra Recibida a Incremento de Stock y Egreso Contable
+-- F. Sincronización de Compra Recibida a Incremento de Stock
+-- NOTE: The automatic cash_movement INSERT was removed (migration 20260831000000_strip_auto_cash_movement).
+--       Expense creation is now handled exclusively by the frontend service (purchases.ts)
+--       so the user can choose the payment method manually.
 CREATE OR REPLACE FUNCTION public.fn_sync_received_purchase_to_stock()
 RETURNS TRIGGER AS $$
-DECLARE
-    v_open_register_id UUID;
 BEGIN
     IF OLD.status IS DISTINCT FROM NEW.status AND NEW.status = 'received' THEN
         -- 1. Sumar cantidad al stock si el item está linkeado
         IF NEW.inventory_item_id IS NOT NULL THEN
             UPDATE public.inventory_items
-            SET 
+            SET
                 quantity = quantity + COALESCE(NEW.quantity, 0),
-                cost_price = CASE WHEN NEW.actual_cost > 0 AND NEW.quantity > 0 
-                                  THEN (NEW.actual_cost / NEW.quantity) 
-                                  ELSE cost_price 
+                cost_price = CASE WHEN NEW.actual_cost > 0 AND NEW.quantity > 0
+                                  THEN (NEW.actual_cost / NEW.quantity)
+                                  ELSE cost_price
                              END,
                 updated_at = NOW()
             WHERE id = NEW.inventory_item_id;
         END IF;
-
-        -- 2. Buscar si hay una caja abierta para registrar el gasto automáticamente
-        SELECT id INTO v_open_register_id 
-        FROM public.cash_registers 
-        WHERE branch_id = NEW.branch_id AND is_closed = FALSE 
-        LIMIT 1;
-
-        IF v_open_register_id IS NOT NULL AND NEW.actual_cost > 0 THEN
-            INSERT INTO public.cash_movements (
-                branch_id,
-                cash_register_id,
-                purchase_id,
-                type,
-                category,
-                gross_amount,
-                net_amount,
-                description
-            ) VALUES (
-                NEW.branch_id,
-                v_open_register_id,
-                NEW.id,
-                'expense',
-                'purchase_payment',
-                NEW.actual_cost,
-                NEW.actual_cost,
-                'Pago automático por compra recibida: ' || NEW.title
-            );
-        END IF;
+        -- cash_movement creation is now handled by the frontend service (purchases.ts)
     END IF;
     RETURN NEW;
 END;
