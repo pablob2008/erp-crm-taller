@@ -4,18 +4,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Pencil, Trash2, Check, X } from "lucide-react"
 import { useState } from "react"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { PurchaseExpenseModal } from "@/components/purchases/PurchaseExpenseModal"
+import type { UnifiedPurchaseItem } from "@/lib/services/purchases"
 
 interface PurchasesTabProps {
   order: WorkOrderComposite;
@@ -35,11 +28,8 @@ export function PurchasesTab({ order, onAddItem, onUpdateItem, onDeleteItem, onM
   const [editItemQty, setEditItemQty] = useState(0)
   const [editItemPrice, setEditItemPrice] = useState(0)
 
-  // Purchase Modal State
-  const [purchasingItemId, setPurchasingItemId] = useState<string | null>(null)
-  const [purchaseAmount, setPurchaseAmount] = useState(0)
-  const [purchaseMethod, setPurchaseMethod] = useState("cash")
-  const [purchaseNote, setPurchaseNote] = useState("")
+  // Purchase Modal State — holds a synthetic UnifiedPurchaseItem for the shared modal
+  const [purchasingItem, setPurchasingItem] = useState<UnifiedPurchaseItem | null>(null)
 
   const handleAddItem = () => {
     if (newItemName.trim()) {
@@ -49,12 +39,17 @@ export function PurchasesTab({ order, onAddItem, onUpdateItem, onDeleteItem, onM
     }
   }
 
-  const handleMarkPurchased = async () => {
-    if (purchasingItemId) {
-      const item = order.work_order_items?.find(i => i.id === purchasingItemId);
-      if (item) {
-        await onMarkPurchased(purchasingItemId, item.quantity, purchaseAmount, purchaseMethod, purchaseNote)
-        setPurchasingItemId(null)
+  const handleModalConfirm = async (
+    _item: UnifiedPurchaseItem,
+    amount: number,
+    method: string,
+    note: string
+  ) => {
+    if (purchasingItem?.id) {
+      const woItem = order.work_order_items?.find((i) => i.id === purchasingItem.id);
+      if (woItem) {
+        await onMarkPurchased(purchasingItem.id, woItem.quantity, amount, method, note || undefined)
+        setPurchasingItem(null)
       }
     }
   }
@@ -145,8 +140,18 @@ export function PurchasesTab({ order, onAddItem, onUpdateItem, onDeleteItem, onM
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {item.status !== 'purchased' && (
                               <Button size="sm" variant="outline" className="h-7 text-xs border-primary text-primary hover:bg-primary hover:text-white" onClick={() => {
-                                setPurchasingItemId(item.id)
-                                setPurchaseAmount(item.quantity * item.unit_price)
+                                setPurchasingItem({
+                                  id: item.id,
+                                  source: 'work_order_item',
+                                  title: item.description || item.inventory_items?.name || 'Repuesto',
+                                  quantity: item.quantity,
+                                  estimatedCost: item.quantity * item.unit_price,
+                                  status: item.status,
+                                  workOrderId: order.id,
+                                  workOrderCode: order.order_number,
+                                  branchId: order.branch_id ?? '',
+                                  createdAt: new Date().toISOString(),
+                                })
                               }}>
                                 Marcar Comprado
                               </Button>
@@ -180,52 +185,11 @@ export function PurchasesTab({ order, onAddItem, onUpdateItem, onDeleteItem, onM
         </div>
       </CardContent>
 
-      <Dialog open={!!purchasingItemId} onOpenChange={(open) => !open && setPurchasingItemId(null)}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Registrar Compra de Repuesto</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="amount">Costo ($)</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                value={purchaseAmount}
-                onChange={(e) => setPurchaseAmount(Number(e.target.value))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="method">Método de Pago</Label>
-              <Select value={purchaseMethod} onValueChange={setPurchaseMethod}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleccionar..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Efectivo</SelectItem>
-                  <SelectItem value="card">Tarjeta</SelectItem>
-                  <SelectItem value="transfer">Transferencia</SelectItem>
-                  <SelectItem value="qr">QR</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="note">Nota (Opcional)</Label>
-              <Textarea
-                id="note"
-                placeholder="Ej. Factura #1234, comprado en Tienda XYZ"
-                value={purchaseNote}
-                onChange={(e) => setPurchaseNote(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPurchasingItemId(null)}>Cancelar</Button>
-            <Button onClick={handleMarkPurchased}>Guardar Compra</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PurchaseExpenseModal
+        item={purchasingItem}
+        onConfirm={handleModalConfirm}
+        onClose={() => setPurchasingItem(null)}
+      />
     </Card>
   )
 }
