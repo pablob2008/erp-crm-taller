@@ -289,6 +289,32 @@ export async function addRandomExpense(
   if (error) throw error;
 }
 
+export interface RandomPaymentData {
+  amount: number;
+  method: string;
+  description: string;
+}
+
+export async function addRandomPayment(
+  supabase: SupabaseClient,
+  branchId: string,
+  orderId: string,
+  data: RandomPaymentData
+) {
+  const { error } = await supabase.from('cash_movements').insert({
+    branch_id: branchId,
+    work_order_id: orderId,
+    type: 'income',
+    category: 'manual_income',
+    gross_amount: data.amount,
+    net_amount: data.amount,
+    payment_method: data.method,
+    description: data.description,
+  });
+  if (error) throw error;
+  await recalculateOrderFinancials(supabase, orderId);
+}
+
 // ─── Task 1.5: deliverOrder ───────────────────────────────────────────────────
 export type DeliveryMode = 'credit' | 'collect';
 
@@ -337,7 +363,11 @@ export async function deliverOrder(
 
   let autoNoteContent: string;
   if (data.mode === 'credit') {
-    autoNoteContent = `Orden #${orderNumber} entregada a crédito. Saldo pendiente: $${balance.toFixed(2)}.`;
+    if (balance <= 0) {
+      autoNoteContent = `Orden #${orderNumber} entregada (saldo cubierto).`;
+    } else {
+      autoNoteContent = `Orden #${orderNumber} entregada a crédito. Saldo pendiente: $${balance.toFixed(2)}.`;
+    }
   } else {
     autoNoteContent = `Orden #${orderNumber} cobrada y entregada. Monto cobrado: $${(data.amount ?? 0).toFixed(2)}. Saldo restante: $${balance.toFixed(2)}.`;
   }

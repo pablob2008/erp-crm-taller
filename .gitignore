@@ -113,3 +113,5 @@ supabase/dump/
 *.key
 *.crt
 *.csr
+# Local Pi runtime state
+.atl/

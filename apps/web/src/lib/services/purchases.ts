@@ -52,7 +52,7 @@ export async function fetchUnifiedPurchases(
 
     supabase
       .from('work_order_items')
-      .select('id, description, quantity, unit_price, status, work_order_id, created_at, work_orders!inner(id, order_number, branch_id)')
+      .select('id, description, quantity, unit_price, status, work_order_id, created_at, work_orders!inner(id, order_number, branch_id, device_brand, device_model)')
       .eq('status', 'pending')
       .eq('work_orders.branch_id', branchId)
       .order('created_at', { ascending: false }),
@@ -86,7 +86,7 @@ export async function fetchUnifiedPurchases(
       estimatedCost: (i.unit_price ?? 0) * (i.quantity ?? 1),
       status: i.status,
       workOrderId: wo?.id ?? i.work_order_id,
-      workOrderCode: wo?.order_number ? `#${wo.order_number}` : undefined,
+      workOrderCode: wo?.device_brand ? `${wo.device_brand} ${wo.device_model} (#${wo.order_number})` : (wo?.order_number ? `#${wo.order_number}` : undefined),
       branchId: wo?.branch_id ?? branchId,
       createdAt: i.created_at,
     };

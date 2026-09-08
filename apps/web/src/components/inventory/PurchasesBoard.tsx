@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react"
+import { useNavigate } from "react-router-dom"
 import { Package, ShoppingCart, AlertTriangle, Search, Layers, RefreshCw, Wrench, Plus } from "lucide-react"
 import { useSupabase } from "@/context/SupabaseProvider"
 import {
@@ -62,6 +63,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export function PurchasesBoard() {
   const { supabase, profile, user } = useSupabase()
+  const navigate = useNavigate()
 
   const [kpis, setKpis] = useState<PurchaseKPIs>({
     totalInventoryItems: 0,
@@ -309,7 +311,12 @@ export function PurchasesBoard() {
                 filtered.map((item) => (
                   <tr
                     key={item.source + "-" + item.id}
-                    className="border-b border-border/20 hover:bg-background/30 transition-colors group/row"
+                    className={`border-b border-border/20 transition-colors group/row ${item.source === "work_order_item" ? "cursor-pointer hover:bg-primary/5" : "hover:bg-background/30"}`}
+                    onClick={() => {
+                      if (item.source === "work_order_item" && item.workOrderId) {
+                        navigate('/orders/' + item.workOrderId)
+                      }
+                    }}
                   >
                     <td className="px-4 pl-7 py-3"><SourceBadge source={item.source} /></td>
                     <td className="px-4 py-3 font-medium max-w-[200px] truncate">{item.title}</td>
@@ -326,8 +333,11 @@ export function PurchasesBoard() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-7 text-xs border-primary text-primary hover:bg-primary hover:text-white opacity-0 group-hover/row:opacity-100 transition-opacity"
-                          onClick={() => setModalItem(item)}
+                          className="h-7 text-xs border-primary text-primary hover:bg-primary hover:text-white opacity-0 group-hover/row:opacity-100 transition-opacity relative z-10"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setModalItem(item)
+                          }}
                         >
                           {item.source === "purchase" ? "Marcar Recibido" : "Marcar Comprado"}
                         </Button>

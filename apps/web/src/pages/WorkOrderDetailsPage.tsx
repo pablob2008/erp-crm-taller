@@ -20,9 +20,10 @@ import {
   updateWorkOrder,
   deleteWorkOrder,
   addRandomExpense,
+  addRandomPayment,
   deliverOrder,
 } from "@/lib/services/work-order-details"
-import type { WorkOrderComposite, WorkOrderEditable, RandomExpenseData, DeliveryData } from "@/lib/services/work-order-details"
+import type { WorkOrderComposite, WorkOrderEditable, RandomExpenseData, DeliveryData, RandomPaymentData } from "@/lib/services/work-order-details"
 import { getBranchInfo } from "@/lib/services/branches"
 import type { BranchInfo } from "@/lib/services/branches"
 
@@ -273,6 +274,18 @@ export default function WorkOrderDetailsPage() {
     }
   }
 
+  const handleAddPayment = async (data: RandomPaymentData) => {
+    if (!id || !order?.branch_id) return;
+    try {
+      await addRandomPayment(supabase, order.branch_id, id, data)
+      await fetchOrder()
+      toast({ title: "Pago registrado" })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error al registrar pago", description: error.message })
+      throw error
+    }
+  }
+
   const handleDeliverOrder = async (data: DeliveryData) => {
     if (!id || !order?.branch_id) return;
     try {
@@ -349,6 +362,7 @@ export default function WorkOrderDetailsPage() {
               onUpdatePayment={handleUpdatePayment}
               onDeletePayment={handleDeletePayment}
               onAddExpense={handleAddExpense}
+              onAddPayment={handleAddPayment}
               onDeliverOrder={handleDeliverOrder}
             />
           )}

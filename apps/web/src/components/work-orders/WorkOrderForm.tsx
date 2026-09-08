@@ -39,9 +39,9 @@ export function WorkOrderForm() {
       accessories: "",
       suggested_solution: "",
       status: "received" as const,
-      estimated_cost: 0,
+      estimated_cost: "" as unknown as number,
       estimated_delivery_at: "",
-      advance_payment: 0,
+      advance_payment: "" as unknown as number,
     },
   });
 

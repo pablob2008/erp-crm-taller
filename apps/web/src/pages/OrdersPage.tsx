@@ -48,7 +48,7 @@ export default function OrdersPage() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery  = searchParams.get("q")      ?? ""
-  const urlStatus = searchParams.get("status") ?? "all"
+  const urlStatus = searchParams.get("status") ?? "in_workshop"
 
   const [orders, setOrders]   = useState<WorkOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -73,7 +73,7 @@ export default function OrdersPage() {
   const handleStatusChange = (value: string) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev)
-      if (value === "all") { next.delete("status") } else { next.set("status", value) }
+      if (value === "in_workshop") { next.delete("status") } else { next.set("status", value) }
       return next
     }, { replace: true })
   }

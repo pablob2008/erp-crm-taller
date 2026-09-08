@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type { WorkOrderComposite } from "@/lib/services/work-order-details"
-import type { RandomExpenseData, DeliveryData } from "@/lib/services/work-order-details"
+import type { RandomExpenseData, DeliveryData, RandomPaymentData } from "@/lib/services/work-order-details"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Pencil, Trash2, X, Check, PlusCircle, Truck } from "lucide-react"
+import { Pencil, Trash2, X, Check, PlusCircle, Truck, DollarSign } from "lucide-react"
 
 // ─── Task 4.1: AddExpenseDialog ───────────────────────────────────────────────
 interface AddExpenseDialogProps {
@@ -132,6 +132,111 @@ function AddExpenseDialog({ open, onClose, onSubmit }: AddExpenseDialogProps) {
   )
 }
 
+interface AddPaymentDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (data: RandomPaymentData) => Promise<void>;
+}
+
+function AddPaymentDialog({ open, onClose, onSubmit }: AddPaymentDialogProps) {
+  const [amount, setAmount] = useState<number | "">("")
+  const [method, setMethod] = useState("")
+  const [description, setDescription] = useState("")
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [submitting, setSubmitting] = useState(false)
+
+  const validate = () => {
+    const e: Record<string, string> = {}
+    if (!amount || Number(amount) <= 0) e.amount = "El monto debe ser mayor a cero."
+    if (!method) e.method = "Seleccioná un método de pago."
+    if (!description.trim()) e.description = "La descripción es obligatoria."
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    setSubmitting(true)
+    try {
+      await onSubmit({ amount: Number(amount), method, description: description.trim() })
+      // Reset form
+      setAmount("")
+      setMethod("")
+      setDescription("")
+      setErrors({})
+      onClose()
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleClose = () => {
+    setAmount("")
+    setMethod("")
+    setDescription("")
+    setErrors({})
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && handleClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Registrar Pago</DialogTitle>
+          <DialogDescription>
+            Registrar un pago ad-hoc asociado a esta orden de trabajo.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label>Monto ($)</Label>
+            <Input
+              type="number"
+              min={0.01}
+              step="0.01"
+              placeholder="0.00"
+              value={amount}
+              onChange={e => setAmount(parseFloat(e.target.value) || "")}
+            />
+            {errors.amount && <p className="text-xs text-destructive">{errors.amount}</p>}
+          </div>
+          <div className="space-y-1">
+            <Label>Método de Pago</Label>
+            <Select value={method} onValueChange={setMethod}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Seleccionar..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Efectivo</SelectItem>
+                <SelectItem value="transfer">Transferencia</SelectItem>
+                <SelectItem value="card">Tarjeta</SelectItem>
+                <SelectItem value="qr">QR / Billetera</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.method && <p className="text-xs text-destructive">{errors.method}</p>}
+          </div>
+          <div className="space-y-1">
+            <Label>Descripción</Label>
+            <Textarea
+              placeholder="¿Por qué concepto?"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              className="resize-none min-h-[60px]"
+            />
+            {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
+          </div>
+        </div>
+        <DialogFooter className="pt-4">
+          <Button variant="ghost" onClick={handleClose} disabled={submitting}>Cancelar</Button>
+          <Button onClick={handleSubmit} disabled={submitting}>
+            {submitting ? 'Guardando...' : 'Registrar Pago'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ─── Task 4.2: DeliverOrderDialog ─────────────────────────────────────────────
 interface DeliverOrderDialogProps {
   open: boolean;
@@ -208,7 +313,7 @@ function DeliverOrderDialog({ open, order, onClose, onSubmit }: DeliverOrderDial
             className="flex-1"
             onClick={() => setMode('credit')}
           >
-            Entregar a Crédito
+            {(order.balance ?? 0) <= 0 ? "Entregar (Saldo Cubierto)" : "Entregar a Crédito"}
           </Button>
           <Button
             variant={mode === 'collect' ? 'default' : 'outline'}
@@ -222,7 +327,9 @@ function DeliverOrderDialog({ open, order, onClose, onSubmit }: DeliverOrderDial
         {/* Credit mode info */}
         {mode === 'credit' && (
           <p className="text-sm text-muted-foreground">
-            Se entregará la orden sin cobrar el saldo pendiente. Se registrará una nota automática con el monto adeudado.
+            {(order.balance ?? 0) <= 0 
+              ? "El saldo ya está cubierto. Se marcará la orden como entregada sin registrar nuevos cobros."
+              : "Se entregará la orden sin cobrar el saldo pendiente. Se registrará una nota automática con el monto adeudado."}
           </p>
         )}
 
@@ -288,14 +395,16 @@ interface FinancesTabProps {
   onUpdatePayment: (paymentId: string, amount: number) => Promise<void>;
   onDeletePayment: (paymentId: string) => Promise<void>;
   onAddExpense: (data: RandomExpenseData) => Promise<void>;
+  onAddPayment: (data: RandomPaymentData) => Promise<void>;
   onDeliverOrder: (data: DeliveryData) => Promise<void>;
 }
 
-export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpense, onDeliverOrder }: FinancesTabProps) {
+export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpense, onAddPayment, onDeliverOrder }: FinancesTabProps) {
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
   const [editPaymentAmount, setEditPaymentAmount] = useState<number | "">("")
 
   const [expenseOpen, setExpenseOpen] = useState(false)
+  const [paymentOpen, setPaymentOpen] = useState(false)
   const [deliverOpen, setDeliverOpen] = useState(false)
 
   const totalExpenses = order.cash_movements?.filter(m => m.type === 'expense').reduce((acc, m) => acc + Number(m.net_amount), 0) || 0;
@@ -328,6 +437,15 @@ export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpe
           <CardTitle className="text-lg">Finanzas y Movimientos</CardTitle>
           {/* Task 4.3: Action Buttons */}
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="shadow-sm border border-border/40"
+              onClick={() => setPaymentOpen(true)}
+            >
+              <DollarSign className="h-4 w-4 mr-1" />
+              Registrar Pago
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -464,6 +582,11 @@ export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpe
         open={expenseOpen}
         onClose={() => setExpenseOpen(false)}
         onSubmit={onAddExpense}
+      />
+      <AddPaymentDialog
+        open={paymentOpen}
+        onClose={() => setPaymentOpen(false)}
+        onSubmit={onAddPayment}
       />
       <DeliverOrderDialog
         open={deliverOpen}
