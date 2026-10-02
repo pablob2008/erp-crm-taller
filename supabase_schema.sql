@@ -496,7 +496,7 @@ DECLARE
     v_is_closed BOOLEAN;
     INCOME_CATEGORIES CONSTANT TEXT[] := ARRAY[
         'work_order_payment',
-        'work_order_advance',
+        
         'manual_income'
     ];
 BEGIN
