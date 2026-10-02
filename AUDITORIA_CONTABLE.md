@@ -135,14 +135,6 @@ FinancePage
 
 ---
 
-
-### RDD Fix — Corrección post-auditoría
-- **Bug crítico reintroducido**: El agente anterior removió `recalculateOrderFinancials` client-side asumiendo que el trigger DB `fn_sync_cash_movement_to_work_order` iba a manejar todos los recálculos (incluyendo `manual_income` y adelantos). Sin embargo, al requerir que el usuario hiciera un `supabase db push` (el cual no fue ejecutado), el sistema en vivo dejó de actualizar el `total_paid` y `balance` al registrar ingresos manuales o entregar equipos. 
-- **Fix RDD aplicado**: 
-  1. Se restauró `recalculateOrderFinancials` (con la lógica de categorías corregida) en `work-order-details.ts`.
-  2. Se re-agregaron las llamadas a la función después de registrar/actualizar/borrar pagos y en `deliverOrder`.
-  3. Se corrigió un edge-case en el `UnbilledWidget` donde las órdenes entregadas por el POS no desaparecían de "Sin Facturar" porque la factura fiscal ARCA quedaba asociada a `sales.arca_invoice_id` en lugar de `arca_invoices.work_order_id`. Se sumó un filtro cruzado adicional en `dashboard.ts`.
-
 ## Checklist de producción post-auditoría
 
 - [x] `UnbilledWidget` excluye órdenes con ARCA aprobada
