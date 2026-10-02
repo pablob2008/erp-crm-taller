@@ -1,110 +1,63 @@
 import { useEffect, useState, useCallback } from "react"
 import { useSupabase } from "@/context/SupabaseProvider"
-import { GlobalDateFilter } from "@/components/dashboard/GlobalDateFilter"
-import { OperationalKPIs } from "@/components/dashboard/OperationalKPIs"
-import { SalesHistoryWidget } from "@/components/dashboard/SalesHistoryWidget"
-import { UnbilledWidget } from "@/components/dashboard/UnbilledWidget"
-import { PendingDebtWidget } from "@/components/dashboard/PendingDebtWidget"
-import { PrintableInvoice, type PrintFormat } from "@/components/pos/print/PrintableInvoice"
-import { fetchDashboardMetrics, getPresetRange, type DateRange, type DashboardMetrics } from "@/lib/services/dashboard"
-import { fetchSaleForPrint, type SaleForPrint } from "@/lib/services/pos"
-import { getBranchInfo, type BranchInfo } from "@/lib/services/branches"
-import { RefreshCw } from "lucide-react"
+import { Wrench, CheckCircle, DollarSign, AlertTriangle, RefreshCw } from "lucide-react"
+import { KpiCard } from "@/components/dashboard/KpiCard"
+import { PipelineWidget } from "@/components/dashboard/PipelineWidget"
+import { RecentOrdersWidget } from "@/components/dashboard/RecentOrdersWidget"
+import { ActivityFeedWidget } from "@/components/dashboard/ActivityFeedWidget"
+import { QuickActionsWidget } from "@/components/dashboard/QuickActionsWidget"
+import { fetchDashboardData, type DashboardData } from "@/lib/services/dashboard"
 
 export default function DashboardPage() {
   const { supabase, profile } = useSupabase()
   const branchId = profile?.branch_id
 
-  // ── State: Date Filter & Metrics Data ───────────────────────────────────────
-  const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange("today"))
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
+  const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // ── State: Reprint & Print Invoice ──────────────────────────────────────────
-  const [branchInfo, setBranchInfo] = useState<BranchInfo | null>(null)
-  const [printData, setPrintData] = useState<SaleForPrint | null>(null)
-  const [reprintingId, setReprintingId] = useState<string | null>(null)
-  const [printFormat] = useState<PrintFormat>("ticket")
-
-  // ── Fetch branch info once branchId is known ────────────────────────────────
-  useEffect(() => {
-    if (!branchId) return
-    getBranchInfo(supabase, branchId)
-      .then((info) => setBranchInfo(info))
-      .catch((err) => console.error("[Dashboard] Failed to fetch branch info:", err))
-  }, [supabase, branchId])
-
-  // ── Load dashboard data on dateRange or branchId change ─────────────────────
   const loadDashboard = useCallback(async () => {
     if (!branchId) return
     setLoading(true)
     setError(null)
     try {
-      const data = await fetchDashboardMetrics(supabase, branchId, dateRange)
-      setMetrics(data)
+      const result = await fetchDashboardData(supabase, branchId)
+      setData(result)
     } catch (err) {
-      console.error("[Dashboard] Error loading dashboard metrics:", err)
-      setError("No se pudieron cargar los datos del panel. Por favor intente nuevamente.")
+      console.error("[Dashboard] Error loading dashboard data:", err)
+      setError("No se pudieron cargar los datos del taller. Por favor refrescá la página.")
     } finally {
       setLoading(false)
     }
-  }, [supabase, branchId, dateRange])
+  }, [supabase, branchId])
 
   useEffect(() => {
     loadDashboard()
   }, [loadDashboard])
 
-  // ── Print effect: trigger window.print() when printData changes ────────────
-  useEffect(() => {
-    if (!printData) return
-    const timer = setTimeout(() => {
-      window.print()
-      window.onafterprint = () => {
-        setPrintData(null)
-        setReprintingId(null)
-        window.onafterprint = null
-      }
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [printData])
-
-  // ── Reprint handler ────────────────────────────────────────────────────────
-  const handleReprint = async (saleId: string) => {
-    try {
-      setReprintingId(saleId)
-      const data = await fetchSaleForPrint(supabase, saleId)
-      setPrintData(data)
-    } catch (err) {
-      console.error("[Dashboard] Failed to fetch sale for print:", err)
-      alert("Error al cargar el comprobante para reimpresión.")
-      setReprintingId(null)
-    }
-  }
-
   return (
     <div className="flex flex-col gap-6">
-      {/* Header with Title and Global Date Filter */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Panel Operativo
+            Panel Operativo del Taller
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Métricas del negocio, ventas directas y control de saldos pendientes
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Estado de reparaciones en tiempo real, equipos listos y alertas operativas
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <GlobalDateFilter value={dateRange} onChange={setDateRange} />
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             type="button"
             onClick={loadDashboard}
             disabled={loading}
-            className="rounded-xl border border-border/40 bg-background/50 p-2 text-muted-foreground backdrop-blur-md hover:bg-accent hover:text-foreground transition-all shadow-sm disabled:opacity-50"
-            title="Actualizar datos"
+            className="inline-flex items-center gap-2 rounded-xl border border-border/40 bg-background/50 px-3 py-2 text-xs font-semibold text-muted-foreground backdrop-blur-md hover:bg-accent hover:text-foreground transition-all shadow-sm disabled:opacity-50"
+            title="Actualizar datos del taller"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            <span>Actualizar</span>
           </button>
         </div>
       </div>
@@ -116,39 +69,62 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Operational KPIs row */}
-      <OperationalKPIs data={metrics?.kpis} loading={loading} />
-
-      {/* Direct Sales History Widget */}
-      <SalesHistoryWidget
-        sales={metrics?.salesHistory ?? []}
-        loading={loading}
-        onReprint={handleReprint}
-        reprintingId={reprintingId}
-      />
-
-      {/* Bottom 2-column Grid: Unbilled Entities & Pending Debt */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <UnbilledWidget
-          unbilledSales={metrics?.unbilledSales ?? []}
-          unbilledOrders={metrics?.unbilledOrders ?? []}
+      {/* Hero Workshop KPIs */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          label="Taller Activo"
+          value={data?.activeWorkshop ?? 0}
+          icon={<Wrench className="h-5 w-5" />}
+          accent="kpi-blue"
           loading={loading}
+          hint="Órdenes de trabajo en curso (excluye entregadas y canceladas)"
         />
-        <PendingDebtWidget
-          orders={metrics?.pendingDebt ?? []}
+        <KpiCard
+          label="Listos para Retiro"
+          value={data?.readyForPickup ?? 0}
+          icon={<CheckCircle className="h-5 w-5" />}
+          accent="kpi-green"
           loading={loading}
+          hint="Equipos reparados listos para que el cliente retire"
+        />
+        <KpiCard
+          label="Caja Neta de Hoy"
+          value={
+            data
+              ? `$${data.todaysCash.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : "$0.00"
+          }
+          icon={<DollarSign className="h-5 w-5" />}
+          accent="kpi-amber"
+          loading={loading}
+          hint="Ingresos menos egresos registrados hoy en la caja chica"
+        />
+        <KpiCard
+          label="Alertas de Stock"
+          value={data?.stockAlerts ?? 0}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          accent="kpi-red"
+          loading={loading}
+          hint="Repuestos o productos en o por debajo del stock mínimo"
         />
       </div>
 
-      {/* Hidden printable invoice engine for reprint action */}
-      {printData && branchInfo && (
-        <PrintableInvoice
-          format={printFormat}
-          sale={printData.sale}
-          saleItems={printData.items}
-          branch={branchInfo}
-        />
-      )}
+      {/* Pipeline visualization */}
+      <PipelineWidget pipeline={data?.pipeline ?? []} loading={loading} />
+
+      {/* Bottom grid: Recent Orders + Activity Feed + Quick Actions */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Recent Orders spans 2 columns on large screens */}
+        <div className="lg:col-span-2">
+          <RecentOrdersWidget orders={data?.recentOrders ?? []} loading={loading} />
+        </div>
+
+        {/* Activity Feed + Quick Actions stacked in third column */}
+        <div className="flex flex-col gap-6">
+          <ActivityFeedWidget activities={data?.recentActivity ?? []} loading={loading} />
+          <QuickActionsWidget />
+        </div>
+      </div>
     </div>
   )
 }
