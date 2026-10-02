@@ -227,10 +227,33 @@ export async function checkoutSale(
       resolvedCustomerId = orderRow.customer_id ?? customerId;
       const cust = orderRow.customers as unknown as { tax_id?: string | null } | null;
       if (cust?.tax_id) {
-        // Heuristic: if tax_id is 11+ digits treat as CUIT (80), else DNI (96)
         const digits = (cust.tax_id ?? '').replace(/\D/g, '');
+        const num = parseInt(digits, 10) || 0;
+        if (num > 0 && digits.length >= 7) {
+          customerDocType = digits.length >= 11 ? '80' : '96';
+          customerDocNumber = digits;
+        } else {
+          customerDocType = '99';
+          customerDocNumber = '0';
+        }
+      }
+    }
+  } else if (customerId) {
+    const { data: custRow } = await supabase
+      .from('customers')
+      .select('tax_id')
+      .eq('id', customerId)
+      .single();
+
+    if (custRow?.tax_id) {
+      const digits = (custRow.tax_id ?? '').replace(/\D/g, '');
+      const num = parseInt(digits, 10) || 0;
+      if (num > 0 && digits.length >= 7) {
         customerDocType = digits.length >= 11 ? '80' : '96';
-        customerDocNumber = cust.tax_id;
+        customerDocNumber = digits;
+      } else {
+        customerDocType = '99';
+        customerDocNumber = '0';
       }
     }
   }

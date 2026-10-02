@@ -1,13 +1,18 @@
 import { Building2, UserCog, Settings } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArcaSettingsPanel } from "@/components/settings/ArcaSettingsPanel"
 
 export default function SettingsPage() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Configuración</h2>
       </div>
 
+      {/* Facturación Electrónica ARCA */}
+      <ArcaSettingsPanel />
+
+      {/* Placeholders existentes */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

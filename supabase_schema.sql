@@ -44,6 +44,7 @@ CREATE TYPE public.payment_method AS ENUM ('cash', 'qr', 'transfer', 'card');
 CREATE TYPE public.discount_type AS ENUM ('none', 'fixed', 'percentage');
 
 CREATE TYPE public.sale_status AS ENUM ('completed', 'voided');
+CREATE TYPE public.tax_condition AS ENUM ('monotributo', 'responsable_inscripto', 'exento');
 
 -- ============================================================================
 -- 2. TABLAS DEL SISTEMA
@@ -296,6 +297,7 @@ CREATE TABLE public.sales (
     cae                 VARCHAR(50),              -- CAE provided by ARCA/AFIP
     cae_expires_at      DATE,
     afip_qr_data        TEXT,                     -- Base64 encoded payload for fiscal QR reprint
+    arca_invoice_id     UUID REFERENCES public.arca_invoices(id) ON DELETE SET NULL, -- Link to centralized fiscal record
     created_by          UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -486,10 +488,17 @@ EXECUTE FUNCTION public.fn_handle_new_user();
 
 
 -- E. Movimientos de Caja Chica hacia Órdenes: Sincronización de Pagos (INSERT, UPDATE, DELETE)
+-- Categories that count as customer payments toward total_paid:
+--   work_order_payment, work_order_advance, manual_income
 CREATE OR REPLACE FUNCTION public.fn_sync_cash_movement_to_work_order()
 RETURNS TRIGGER AS $$
 DECLARE
     v_is_closed BOOLEAN;
+    INCOME_CATEGORIES CONSTANT TEXT[] := ARRAY[
+        'work_order_payment',
+        'work_order_advance',
+        'manual_income'
+    ];
 BEGIN
     -- Validar que la caja esté abierta solo para inserciones y actualizaciones
     IF TG_OP IN ('INSERT', 'UPDATE') THEN
@@ -503,7 +512,7 @@ BEGIN
 
     -- 1. CASO INSERCIÓN (INSERT)
     IF TG_OP = 'INSERT' THEN
-        IF NEW.category = 'work_order_payment' AND NEW.work_order_id IS NOT NULL THEN
+        IF NEW.type = 'income' AND NEW.category = ANY(INCOME_CATEGORIES) AND NEW.work_order_id IS NOT NULL THEN
             UPDATE public.work_orders
             SET total_paid = total_paid + NEW.net_amount, updated_at = NOW()
             WHERE id = NEW.work_order_id;
@@ -511,15 +520,19 @@ BEGIN
 
     -- 2. CASO EDICIÓN (UPDATE)
     ELSIF TG_OP = 'UPDATE' THEN
-        IF OLD.work_order_id IS DISTINCT FROM NEW.work_order_id OR OLD.net_amount IS DISTINCT FROM NEW.net_amount THEN
+        IF OLD.work_order_id IS DISTINCT FROM NEW.work_order_id
+           OR OLD.net_amount IS DISTINCT FROM NEW.net_amount
+           OR OLD.category   IS DISTINCT FROM NEW.category
+           OR OLD.type       IS DISTINCT FROM NEW.type
+        THEN
             -- Reversamos (restamos) el monto viejo de la orden anterior
-            IF OLD.category = 'work_order_payment' AND OLD.work_order_id IS NOT NULL THEN
+            IF OLD.type = 'income' AND OLD.category = ANY(INCOME_CATEGORIES) AND OLD.work_order_id IS NOT NULL THEN
                 UPDATE public.work_orders
                 SET total_paid = total_paid - OLD.net_amount, updated_at = NOW()
                 WHERE id = OLD.work_order_id;
             END IF;
             -- Sumamos el nuevo monto a la orden correspondiente
-            IF NEW.category = 'work_order_payment' AND NEW.work_order_id IS NOT NULL THEN
+            IF NEW.type = 'income' AND NEW.category = ANY(INCOME_CATEGORIES) AND NEW.work_order_id IS NOT NULL THEN
                 UPDATE public.work_orders
                 SET total_paid = total_paid + NEW.net_amount, updated_at = NOW()
                 WHERE id = NEW.work_order_id;
@@ -528,7 +541,7 @@ BEGIN
 
     -- 3. CASO ELIMINACIÓN (DELETE)
     ELSIF TG_OP = 'DELETE' THEN
-        IF OLD.category = 'work_order_payment' AND OLD.work_order_id IS NOT NULL THEN
+        IF OLD.type = 'income' AND OLD.category = ANY(INCOME_CATEGORIES) AND OLD.work_order_id IS NOT NULL THEN
             UPDATE public.work_orders
             SET total_paid = total_paid - OLD.net_amount, updated_at = NOW()
             WHERE id = OLD.work_order_id;
@@ -1082,6 +1095,12 @@ CREATE TABLE public.arca_configs (
     branch_id UUID PRIMARY KEY REFERENCES public.branches(id) ON DELETE CASCADE,
     cuit VARCHAR(11) NOT NULL,
     pto_vta INT NOT NULL DEFAULT 1,
+    tax_condition public.tax_condition NOT NULL DEFAULT 'monotributo', -- 'monotributo' | 'responsable_inscripto' | 'exento'
+    business_name VARCHAR(255),       -- Razón Social
+    fantasy_name VARCHAR(255),        -- Nombre de Fantasía
+    iibb VARCHAR(30),                 -- Número de Ingresos Brutos
+    activity_start_date DATE,         -- Inicio de Actividades
+    is_active BOOLEAN NOT NULL DEFAULT false,  -- Kill switch: habilita/deshabilita facturación electrónica
     environment VARCHAR(20) NOT NULL DEFAULT 'homologacion', -- 'homologacion' | 'produccion'
     wsaa_token TEXT,
     wsaa_sign TEXT,
@@ -1104,6 +1123,7 @@ CREATE TABLE public.arca_invoices (
     branch_id UUID NOT NULL REFERENCES public.branches(id) ON DELETE CASCADE,
     work_order_id UUID REFERENCES public.work_orders(id) ON DELETE SET NULL,
     cash_movement_id UUID REFERENCES public.cash_movements(id) ON DELETE SET NULL,
+    sale_id UUID REFERENCES public.sales(id) ON DELETE SET NULL,
     customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
     cbte_tipo INT NOT NULL, -- 1: Factura A, 6: Factura B, 11: Factura C, 3: NC A, 8: NC B, 13: NC C
     pto_vta INT NOT NULL DEFAULT 1,
@@ -1126,10 +1146,12 @@ CREATE TABLE public.arca_invoices (
 CREATE INDEX idx_arca_invoices_branch ON public.arca_invoices(branch_id);
 CREATE INDEX idx_arca_invoices_work_order ON public.arca_invoices(work_order_id);
 CREATE INDEX idx_arca_invoices_cae ON public.arca_invoices(cae);
+CREATE INDEX idx_arca_invoices_sale ON public.arca_invoices(sale_id) WHERE sale_id IS NOT NULL;
 
--- Restricciones de unicidad para evitar doble facturación (Solo 1 factura aprobada por orden/movimiento)
+-- Restricciones de unicidad para evitar doble facturación (Solo 1 factura aprobada por orden/movimiento/venta)
 CREATE UNIQUE INDEX idx_unica_factura_orden ON public.arca_invoices(work_order_id) WHERE (work_order_id IS NOT NULL AND resultado = 'A');
 CREATE UNIQUE INDEX idx_unica_factura_movimiento ON public.arca_invoices(cash_movement_id) WHERE (cash_movement_id IS NOT NULL AND resultado = 'A');
+CREATE UNIQUE INDEX idx_unica_factura_venta ON public.arca_invoices(sale_id) WHERE (sale_id IS NOT NULL AND resultado = 'A');
 
 ALTER TABLE public.arca_invoices ENABLE ROW LEVEL SECURITY;
 
@@ -1176,9 +1198,23 @@ WITH CHECK (
 -- =======================================================================================
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('arca_certs', 'arca_certs', false)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET public = false;
 
--- Por defecto Supabase bloquea todo acceso. Esto asegura que nadie (ni siquiera 
--- un usuario logueado en el CRM) pueda leer o descargar los certificados .key o .crt
--- La Edge Function de facturación lo bypasseará usando su token service_role.
+-- Permitir a usuarios autenticados gestionar los certificados dentro de la carpeta de su sucursal
+CREATE POLICY "Gestion de certificados ARCA para autenticados" ON storage.objects
+FOR ALL TO authenticated
+USING (
+  bucket_id = 'arca_certs'
+  AND (
+    (storage.foldername(name))[1] = public.get_user_branch_id()::text
+    OR public.get_user_branch_id() IS NULL
+  )
+)
+WITH CHECK (
+  bucket_id = 'arca_certs'
+  AND (
+    (storage.foldername(name))[1] = public.get_user_branch_id()::text
+    OR public.get_user_branch_id() IS NULL
+  )
+);
 

@@ -125,24 +125,19 @@ export function InvoiceTicket({ sale, saleItems, branch }: InvoiceTicketProps) {
       </div>
 
       {/* ── Customer doc info ─────────────────────────────────────────── */}
-      {sale.customer_doc_number && (
-        <>
-          <div style={divider} />
-          <div style={{ marginBottom: '4px' }}>
-            <div>
-              <span style={bold}>Doc.: </span>
-              <span>
-                {sale.customer_doc_type === '80'
-                  ? 'CUIT'
-                  : sale.customer_doc_type === '96'
-                  ? 'DNI'
-                  : sale.customer_doc_type ?? ''}{' '}
-                {sale.customer_doc_number}
-              </span>
-            </div>
-          </div>
-        </>
-      )}
+      <div style={divider} />
+      <div style={{ marginBottom: '4px' }}>
+        <div>
+          <span style={bold}>A: </span>
+          <span>
+            {sale.customer_doc_type === '80' && sale.customer_doc_number && sale.customer_doc_number !== '0'
+              ? `CUIT ${sale.customer_doc_number}`
+              : sale.customer_doc_type === '96' && sale.customer_doc_number && sale.customer_doc_number !== '0'
+              ? `DNI ${sale.customer_doc_number}`
+              : 'Consumidor Final'}
+          </span>
+        </div>
+      </div>
 
       <div style={divider} />
 

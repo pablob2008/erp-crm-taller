@@ -1,6 +1,8 @@
 import { useState } from "react"
 import type { WorkOrderComposite } from "@/lib/services/work-order-details"
 import type { RandomExpenseData, DeliveryData, RandomPaymentData } from "@/lib/services/work-order-details"
+import { useSupabase } from "@/context/SupabaseProvider"
+import { emitInvoice, fetchInvoiceByTarget, type ArcaInvoice, getVoucherTypeLabel, formatInvoiceFullNumber } from "@/lib/services/arca"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -8,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 
 import {
   Dialog,
@@ -24,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Pencil, Trash2, X, Check, PlusCircle, Truck, DollarSign } from "lucide-react"
+import { Pencil, Trash2, X, Check, PlusCircle, Truck, DollarSign, FileText, Loader2, CheckCircle2 } from "lucide-react"
 
 // ─── Task 4.1: AddExpenseDialog ───────────────────────────────────────────────
 interface AddExpenseDialogProps {
@@ -400,12 +403,57 @@ interface FinancesTabProps {
 }
 
 export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpense, onAddPayment, onDeliverOrder }: FinancesTabProps) {
+  const { supabase } = useSupabase()
+  const { toast } = useToast()
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
   const [editPaymentAmount, setEditPaymentAmount] = useState<number | "">("")
 
   const [expenseOpen, setExpenseOpen] = useState(false)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [deliverOpen, setDeliverOpen] = useState(false)
+
+  // Fiscal state
+  const [invoice, setInvoice] = useState<ArcaInvoice | null>(null)
+  const [invoiceLoading, setInvoiceLoading] = useState(true)
+  const [emitting, setEmitting] = useState(false)
+
+  // Check if an invoice already exists for this order
+  useState(() => {
+    ;(async () => {
+      try {
+        const existing = await fetchInvoiceByTarget(supabase, "work_order", order.id)
+        setInvoice(existing)
+      } catch { /* ignore */ }
+      finally { setInvoiceLoading(false) }
+    })()
+  })
+
+  const handleEmitInvoice = async () => {
+    setEmitting(true)
+    try {
+      const res = await emitInvoice(supabase, {
+        target_type: "work_order",
+        target_id: order.id,
+      })
+      if (res.success) {
+        toast({
+          title: res.already_invoiced ? "Comprobante existente" : "Factura emitida",
+          description: res.mock
+            ? `CAE simulado: ${res.cae} (modo pruebas)`
+            : `CAE: ${res.cae}`,
+        })
+        // Reload the invoice record
+        const updated = await fetchInvoiceByTarget(supabase, "work_order", order.id)
+        setInvoice(updated)
+      } else {
+        toast({ variant: "destructive", title: "Error al facturar", description: res.error || res.message })
+      }
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "Error", description: err instanceof Error ? err.message : "Error desconocido." })
+    } finally {
+      setEmitting(false)
+    }
+  }
 
   const totalExpenses = order.cash_movements?.filter(m => m.type === 'expense').reduce((acc, m) => acc + Number(m.net_amount), 0) || 0;
   const netProfit = (order.total_paid || 0) - totalExpenses;
@@ -464,6 +512,23 @@ export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpe
               <Truck className="h-4 w-4 mr-1" />
               Entregar Orden
             </Button>
+            {/* Botón Emitir Factura Electrónica */}
+            <Button
+              variant={invoice ? "outline" : "default"}
+              size="sm"
+              className="shadow-sm border border-border/40"
+              onClick={handleEmitInvoice}
+              disabled={emitting || invoiceLoading || !!invoice}
+            >
+              {emitting ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : invoice ? (
+                <CheckCircle2 className="h-4 w-4 mr-1 text-green-600" />
+              ) : (
+                <FileText className="h-4 w-4 mr-1" />
+              )}
+              {invoice ? "Facturado" : "Emitir Factura"}
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -489,6 +554,34 @@ export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpe
               </span>
             </div>
           </div>
+
+          {/* Comprobante fiscal */}
+          {invoice && (
+            <div className="p-4 rounded-xl bg-green-50/50 dark:bg-green-950/20 border border-green-200/60 dark:border-green-800/40 mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-semibold text-green-700 dark:text-green-400">Comprobante Fiscal Emitido</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground text-xs">Tipo</span>
+                  <p className="font-medium">{getVoucherTypeLabel(invoice.cbte_tipo)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Número</span>
+                  <p className="font-medium">{invoice.cbte_nro ? formatInvoiceFullNumber(invoice.pto_vta, invoice.cbte_nro) : "-"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">CAE</span>
+                  <p className="font-mono font-medium text-xs">{invoice.cae || "-"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Vto. CAE</span>
+                  <p className="font-medium">{invoice.cae_fch_vto || "-"}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <h3 className="font-semibold mb-4 text-lg">Historial de Movimientos</h3>
           <div className="rounded-md bg-background/40 border border-border/40 shadow-sm backdrop-blur-md overflow-hidden">

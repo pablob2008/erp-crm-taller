@@ -189,14 +189,16 @@ export function InvoiceA4({ sale, saleItems, branch }: InvoiceA4Props) {
                   ? 'CUIT'
                   : sale.customer_doc_type === '96'
                   ? 'DNI'
-                  : sale.customer_doc_type === '99'
-                  ? 'Consumidor Final'
-                  : sale.customer_doc_type ?? '—'}
+                  : 'Consumidor Final'}
               </td>
               <td style={{ padding: '6px 8px', fontWeight: 'bold', width: '20%' }}>
                 N° Doc.:
               </td>
-              <td style={{ padding: '6px 8px' }}>{sale.customer_doc_number ?? '—'}</td>
+              <td style={{ padding: '6px 8px' }}>
+                {sale.customer_doc_number && sale.customer_doc_number !== '0'
+                  ? sale.customer_doc_number
+                  : '—'}
+              </td>
             </tr>
           </tbody>
         </table>

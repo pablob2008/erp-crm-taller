@@ -11,6 +11,17 @@ import { PrintableInvoice, type PrintFormat } from "@/components/pos/print/Print
 import type { TicketItem, TicketState, OrderSearchResult, SaleForPrint } from "@/lib/services/pos"
 import { checkoutSale, fetchSaleForPrint } from "@/lib/services/pos"
 import { getBranchInfo, type BranchInfo } from "@/lib/services/branches"
+import { emitInvoice, fetchArcaConfig } from "@/lib/services/arca"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { FileText, Loader2, CheckCircle2, XCircle } from "lucide-react"
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 
@@ -109,6 +120,13 @@ export default function POSPage() {
   const [expenseOpen, setExpenseOpen] = useState(false)
   const [manualSaleOpen, setManualSaleOpen] = useState(false)
 
+  // Post-checkout invoice dialog
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
+  const [invoiceDialogSaleId, setInvoiceDialogSaleId] = useState<string | null>(null)
+  const [invoiceEmitting, setInvoiceEmitting] = useState(false)
+  const [invoiceResult, setInvoiceResult] = useState<{ cae: string; mock: boolean } | null>(null)
+  const [arcaActive, setArcaActive] = useState(false)
+
   const branchId: string = profile?.branch_id ?? ""
   const userId: string = user?.id ?? ""
 
@@ -118,6 +136,10 @@ export default function POSPage() {
     getBranchInfo(supabase, branchId)
       .then((info) => setBranchInfo(info))
       .catch((err) => console.error('[POS] Failed to fetch branch info:', err))
+    // Check if ARCA is active for this branch
+    fetchArcaConfig(supabase, branchId)
+      .then((cfg) => setArcaActive(cfg?.is_active ?? false))
+      .catch(() => setArcaActive(false))
   }, [supabase, branchId])
 
   // ── Trigger print when printData is populated ───────────────────────────────
@@ -186,6 +208,15 @@ export default function POSPage() {
     []
   )
 
+  const triggerPrint = useCallback(async (saleId: string) => {
+    try {
+      const saleData = await fetchSaleForPrint(supabase, saleId)
+      setPrintData(saleData)
+    } catch (printErr) {
+      console.error('[POS] Could not fetch sale for printing:', printErr)
+    }
+  }, [supabase])
+
   const handleCheckout = useCallback(async () => {
     if (ticketState.items.length === 0) {
       toast({ title: "Ticket vacío", description: "Agregá al menos un ítem antes de cobrar.", variant: "destructive" })
@@ -213,18 +244,17 @@ export default function POSPage() {
         description: `Total cobrado: $${result.total.toLocaleString("es-AR")}`,
       })
 
-      // Clear the ticket immediately; print data is independently fetched below.
+      // Clear the ticket immediately
       dispatch({ type: "CLEAR_TICKET" })
 
-      // Fetch the persisted sale for printing.
-      // Runs in background — a failure here should not undo the sale UI reset.
-      try {
-        const saleData = await fetchSaleForPrint(supabase, result.saleId)
-        setPrintData(saleData)
-        // The useEffect watching printData will fire window.print() after 300ms.
-      } catch (printErr) {
-        console.error('[POS] Could not fetch sale for printing:', printErr)
-        // Non-fatal: the sale was already registered; only printing is skipped.
+      // If ARCA is active, offer to emit fiscal invoice BEFORE printing
+      if (arcaActive) {
+        setInvoiceDialogSaleId(result.saleId)
+        setInvoiceResult(null)
+        setInvoiceDialogOpen(true)
+      } else {
+        // If ARCA is not active, just print the non-fiscal ticket immediately
+        triggerPrint(result.saleId)
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al procesar la venta."
@@ -232,7 +262,43 @@ export default function POSPage() {
     } finally {
       setIsCheckingOut(false)
     }
-  }, [ticketState, subtotal, branchId, userId, supabase, toast])
+  }, [ticketState, subtotal, branchId, userId, supabase, toast, arcaActive, triggerPrint])
+
+  const handleEmitPostCheckoutInvoice = useCallback(async () => {
+    if (!invoiceDialogSaleId) return
+    setInvoiceEmitting(true)
+    try {
+      const res = await emitInvoice(supabase, {
+        target_type: "sale",
+        target_id: invoiceDialogSaleId,
+      })
+      if (res.success) {
+        setInvoiceResult({ cae: res.cae || "", mock: res.mock ?? false })
+        toast({
+          title: res.already_invoiced ? "Comprobante existente" : "Factura emitida",
+          description: res.mock
+            ? `CAE simulado: ${res.cae} (modo pruebas)`
+            : `CAE: ${res.cae}`,
+        })
+      } else {
+        toast({ variant: "destructive", title: "Error al facturar", description: res.error || res.message })
+      }
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "Error", description: err instanceof Error ? err.message : "Error desconocido." })
+    } finally {
+      setInvoiceEmitting(false)
+    }
+  }, [invoiceDialogSaleId, supabase, toast])
+
+  const handleCloseInvoiceDialog = useCallback(() => {
+    if (invoiceDialogSaleId) {
+      // Print happens AFTER the dialog is closed, picking up the fiscal fields if emitted.
+      triggerPrint(invoiceDialogSaleId)
+    }
+    setInvoiceDialogOpen(false)
+    setInvoiceDialogSaleId(null)
+    setInvoiceResult(null)
+  }, [invoiceDialogSaleId, triggerPrint])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -314,6 +380,53 @@ export default function POSPage() {
           branch={branchInfo}
         />
       )}
+
+      {/* Post-checkout invoice dialog */}
+      <Dialog open={invoiceDialogOpen} onOpenChange={(v) => !v && handleCloseInvoiceDialog()}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Facturación Electrónica
+            </DialogTitle>
+            <DialogDescription>
+              La venta se registró correctamente. ¿Querés emitir el comprobante fiscal?
+            </DialogDescription>
+          </DialogHeader>
+
+          {invoiceResult ? (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <CheckCircle2 className="h-10 w-10 text-green-600" />
+              <p className="text-sm font-semibold text-green-700 dark:text-green-400">
+                {invoiceResult.mock ? "Factura simulada emitida" : "Factura emitida correctamente"}
+              </p>
+              <p className="text-xs text-muted-foreground font-mono">CAE: {invoiceResult.cae}</p>
+            </div>
+          ) : null}
+
+          <DialogFooter className="gap-2">
+            {!invoiceResult ? (
+              <>
+                <Button variant="ghost" onClick={handleCloseInvoiceDialog} disabled={invoiceEmitting}>
+                  <XCircle className="h-4 w-4 mr-1" /> Omitir
+                </Button>
+                <Button onClick={handleEmitPostCheckoutInvoice} disabled={invoiceEmitting}>
+                  {invoiceEmitting ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4 mr-1" />
+                  )}
+                  Emitir Factura
+                </Button>
+              </>
+            ) : (
+              <Button onClick={handleCloseInvoiceDialog}>
+                Cerrar
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
