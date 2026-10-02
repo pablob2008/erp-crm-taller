@@ -512,7 +512,7 @@ BEGIN
 
     -- 1. CASO INSERCIÓN (INSERT)
     IF TG_OP = 'INSERT' THEN
-        IF NEW.type = 'income' AND NEW.category = ANY(INCOME_CATEGORIES) AND NEW.work_order_id IS NOT NULL THEN
+        IF NEW.type = 'income' AND NEW.category IN ('work_order_payment', 'manual_income') AND NEW.work_order_id IS NOT NULL THEN
             UPDATE public.work_orders
             SET total_paid = total_paid + NEW.net_amount, updated_at = NOW()
             WHERE id = NEW.work_order_id;
@@ -526,13 +526,13 @@ BEGIN
            OR OLD.type       IS DISTINCT FROM NEW.type
         THEN
             -- Reversamos (restamos) el monto viejo de la orden anterior
-            IF OLD.type = 'income' AND OLD.category = ANY(INCOME_CATEGORIES) AND OLD.work_order_id IS NOT NULL THEN
+            IF OLD.type = 'income' AND OLD.category IN ('work_order_payment', 'manual_income') AND OLD.work_order_id IS NOT NULL THEN
                 UPDATE public.work_orders
                 SET total_paid = total_paid - OLD.net_amount, updated_at = NOW()
                 WHERE id = OLD.work_order_id;
             END IF;
             -- Sumamos el nuevo monto a la orden correspondiente
-            IF NEW.type = 'income' AND NEW.category = ANY(INCOME_CATEGORIES) AND NEW.work_order_id IS NOT NULL THEN
+            IF NEW.type = 'income' AND NEW.category IN ('work_order_payment', 'manual_income') AND NEW.work_order_id IS NOT NULL THEN
                 UPDATE public.work_orders
                 SET total_paid = total_paid + NEW.net_amount, updated_at = NOW()
                 WHERE id = NEW.work_order_id;
@@ -541,7 +541,7 @@ BEGIN
 
     -- 3. CASO ELIMINACIÓN (DELETE)
     ELSIF TG_OP = 'DELETE' THEN
-        IF OLD.type = 'income' AND OLD.category = ANY(INCOME_CATEGORIES) AND OLD.work_order_id IS NOT NULL THEN
+        IF OLD.type = 'income' AND OLD.category IN ('work_order_payment', 'manual_income') AND OLD.work_order_id IS NOT NULL THEN
             UPDATE public.work_orders
             SET total_paid = total_paid - OLD.net_amount, updated_at = NOW()
             WHERE id = OLD.work_order_id;

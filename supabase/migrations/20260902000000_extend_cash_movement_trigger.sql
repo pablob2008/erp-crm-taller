@@ -23,11 +23,6 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_is_closed BOOLEAN;
 
-    -- Categories that count as a customer payment toward total_paid
-    INCOME_CATEGORIES CONSTANT TEXT[] := ARRAY[
-        'work_order_payment',
-        'manual_income'
-    ];
 BEGIN
     -- Validate: reject movements on a closed cash register
     IF TG_OP IN ('INSERT', 'UPDATE') THEN
@@ -44,7 +39,7 @@ BEGIN
     -- ── INSERT ───────────────────────────────────────────────────────────────
     IF TG_OP = 'INSERT' THEN
         IF NEW.type = 'income'
-           AND NEW.category = ANY(INCOME_CATEGORIES)
+           AND NEW.category IN ('work_order_payment', 'manual_income')
            AND NEW.work_order_id IS NOT NULL
         THEN
             UPDATE public.work_orders
@@ -62,7 +57,7 @@ BEGIN
         THEN
             -- Reverse (subtract) the old amount from the previous order
             IF OLD.type = 'income'
-               AND OLD.category = ANY(INCOME_CATEGORIES)
+               AND OLD.category IN ('work_order_payment', 'manual_income')
                AND OLD.work_order_id IS NOT NULL
             THEN
                 UPDATE public.work_orders
@@ -73,7 +68,7 @@ BEGIN
 
             -- Apply (add) the new amount to the (possibly different) order
             IF NEW.type = 'income'
-               AND NEW.category = ANY(INCOME_CATEGORIES)
+               AND NEW.category IN ('work_order_payment', 'manual_income')
                AND NEW.work_order_id IS NOT NULL
             THEN
                 UPDATE public.work_orders
@@ -86,7 +81,7 @@ BEGIN
     -- ── DELETE ───────────────────────────────────────────────────────────────
     ELSIF TG_OP = 'DELETE' THEN
         IF OLD.type = 'income'
-           AND OLD.category = ANY(INCOME_CATEGORIES)
+           AND OLD.category IN ('work_order_payment', 'manual_income')
            AND OLD.work_order_id IS NOT NULL
         THEN
             UPDATE public.work_orders
