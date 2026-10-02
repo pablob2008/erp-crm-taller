@@ -132,23 +132,36 @@ export async function addOrderItem(supabase: SupabaseClient, orderId: string, it
   if (error) throw error;
 }
 
-export async function addOrderPayment(supabase: SupabaseClient, branchId: string, orderId: string, registerId: string, amount: number, method: string) {
+export async function addOrderPayment(
+  supabase: SupabaseClient,
+  branchId: string,
+  orderId: string,
+  registerId: string | null | undefined,
+  amount: number,
+  method: string
+) {
+  if (!amount || amount <= 0) throw new Error('El monto debe ser mayor a cero.');
+  if (!method) throw new Error('El método de pago es requerido.');
+
+  // cash_register_id is optional (nullable FK). Only pass it when it’s a valid non-empty string.
+  const cashRegisterId = registerId && registerId.trim().length > 0 ? registerId : null;
+
   const { error } = await supabase
     .from('cash_movements')
-    .insert({ 
+    .insert({
       branch_id: branchId,
-      work_order_id: orderId, 
-      cash_register_id: registerId, 
+      work_order_id: orderId,
+      cash_register_id: cashRegisterId,
       type: 'income',
       category: 'work_order_payment',
       gross_amount: amount,
-      net_amount: amount, 
+      net_amount: amount,
       payment_method: method,
-      description: `Payment for work order`
+      description: 'Pago de orden de trabajo',
     });
-    
+
   if (error) throw error;
-  await recalculateOrderFinancials(supabase, orderId);
+  // Trigger trg_sync_cash_movement_to_work_order handles total_paid update automatically.
 }
 
 export async function updateTask(supabase: SupabaseClient, taskId: string, title: string) {
@@ -181,28 +194,21 @@ export async function deleteItem(supabase: SupabaseClient, itemId: string) {
   if (error) throw error;
 }
 
-async function recalculateOrderFinancials(supabase: SupabaseClient, orderId: string) {
-  const { data: payments } = await supabase.from('cash_movements')
-    .select('net_amount')
-    .eq('work_order_id', orderId)
-    .eq('type', 'income');
-  
-  const totalPaid = payments?.reduce((acc, p) => acc + Number(p.net_amount || 0), 0) || 0;
+// NOTE: total_paid recalculation is handled entirely by the DB trigger
+// fn_sync_cash_movement_to_work_order (migration 20260902000000).
+// The previous client-side recalculateOrderFinancials() has been removed.
+// Categories that count toward total_paid: work_order_payment, work_order_advance, manual_income.
 
-  const { error } = await supabase.from('work_orders').update({ total_paid: totalPaid }).eq('id', orderId);
-  if (error) throw error;
-}
-
-export async function updatePayment(supabase: SupabaseClient, paymentId: string, orderId: string, amount: number) {
+export async function updatePayment(supabase: SupabaseClient, paymentId: string, _orderId: string, amount: number) {
+  // The trigger handles total_paid update automatically on UPDATE.
   const { error } = await supabase.from('cash_movements').update({ net_amount: amount }).eq('id', paymentId);
   if (error) throw error;
-  await recalculateOrderFinancials(supabase, orderId);
 }
 
-export async function deletePayment(supabase: SupabaseClient, paymentId: string, orderId: string) {
+export async function deletePayment(supabase: SupabaseClient, paymentId: string, _orderId: string) {
+  // The trigger handles total_paid update automatically on DELETE.
   const { error } = await supabase.from('cash_movements').delete().eq('id', paymentId);
   if (error) throw error;
-  await recalculateOrderFinancials(supabase, orderId);
 }
 
 export async function markItemAsPurchased(
@@ -312,7 +318,7 @@ export async function addRandomPayment(
     description: data.description,
   });
   if (error) throw error;
-  await recalculateOrderFinancials(supabase, orderId);
+  // Trigger handles total_paid update automatically.
 }
 
 // ─── Task 1.5: deliverOrder ───────────────────────────────────────────────────
@@ -348,7 +354,7 @@ export async function deliverOrder(
       description: 'Cobro al entregar la orden',
     });
     if (movError) throw movError;
-    await recalculateOrderFinancials(supabase, orderId);
+    // Trigger trg_sync_cash_movement_to_work_order handles total_paid update automatically.
   }
 
   // Step 2: fetch updated balance to compose auto-note

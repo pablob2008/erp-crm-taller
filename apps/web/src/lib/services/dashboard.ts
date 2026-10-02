@@ -302,7 +302,8 @@ export async function fetchDashboardMetrics(
     salesRes,
     readyOrDeliveredOrdersRes,
     unbilledSalesRes,
-    unbilledOrdersRes,
+    approvedInvoicesRes,
+    allOrdersRes,
     pendingDebtRes,
   ] = await Promise.all([
     // 1. Sales history & KPI revenue / tickets in date range
@@ -335,7 +336,9 @@ export async function fetchDashboardMetrics(
       .gte("created_at", dateRange.from)
       .lte("created_at", dateRange.to),
 
-    // 3. Unbilled sales (stateful, unfiltered by date)
+    // 3. Unbilled sales: completed sales where arca_invoice_id IS NULL
+    // (the column is set by the print engine when an approved invoice exists).
+    // Also exclude voided sales — they were cancelled, not forgotten.
     supabase
       .from("sales")
       .select(`
@@ -349,11 +352,22 @@ export async function fetchDashboardMetrics(
         customers ( first_name, last_name )
       `)
       .eq("branch_id", branchId)
-      .is("cae", null)
+      .is("arca_invoice_id", null)
       .neq("status", "voided")
       .order("created_at", { ascending: false }),
 
-    // 4. Unbilled work orders (stateful, unfiltered by date)
+    // 4. Fetch all approved arca_invoice work_order_ids so we can exclude
+    // invoiced orders from the "unbilled orders" list client-side.
+    // PostgREST has no NOT EXISTS; two-query approach is the cleanest.
+    supabase
+      .from("arca_invoices")
+      .select("work_order_id")
+      .eq("resultado", "A")
+      .not("work_order_id", "is", null),
+
+    // 4b. All non-cancelled work orders in terminal/near-terminal states.
+    // We only show orders that are "ready" or "delivered" as "unbilled" — orders
+    // still in_progress, waiting_parts, etc. cannot be invoiced yet.
     supabase
       .from("work_orders")
       .select(`
@@ -366,7 +380,7 @@ export async function fetchDashboardMetrics(
         customers ( first_name, last_name )
       `)
       .eq("branch_id", branchId)
-      .neq("status", "cancelled")
+      .in("status", ["ready_for_pickup", "delivered"])
       .order("created_at", { ascending: false }),
 
     // 5. Pending debt work orders (stateful, unfiltered by date)
@@ -392,7 +406,8 @@ export async function fetchDashboardMetrics(
   if (salesRes.error) throw salesRes.error
   if (readyOrDeliveredOrdersRes.error) throw readyOrDeliveredOrdersRes.error
   if (unbilledSalesRes.error) throw unbilledSalesRes.error
-  if (unbilledOrdersRes.error) throw unbilledOrdersRes.error
+  if (approvedInvoicesRes.error) throw approvedInvoicesRes.error
+  if (allOrdersRes.error) throw allOrdersRes.error
   if (pendingDebtRes.error) throw pendingDebtRes.error
 
   const rawSales = (salesRes.data ?? []) as any[]
@@ -410,12 +425,14 @@ export async function fetchDashboardMetrics(
     invoice_number: row.invoice_number,
   }))
 
+  // KPI: Total revenue excludes voided sales
   const totalRevenue = rawSales.reduce((acc, s) => {
     if (s.status === "voided") return acc
     return acc + Number(s.total ?? 0)
   }, 0)
 
-  const ticketCount = rawSales.length
+  // KPI: ticket count excludes voided sales
+  const ticketCount = rawSales.filter((s) => s.status !== "voided").length
   const readyOrDeliveredOrders = readyOrDeliveredOrdersRes.count ?? 0
 
   const rawUnbilledSales = (unbilledSalesRes.data ?? []) as any[]
@@ -430,16 +447,24 @@ export async function fetchDashboardMetrics(
     work_order_id: row.work_order_id,
   }))
 
-  const rawUnbilledOrders = (unbilledOrdersRes.data ?? []) as any[]
-  const unbilledOrders: UnbilledOrderItem[] = rawUnbilledOrders.map((row) => ({
-    id: row.id,
-    order_number: row.order_number,
-    created_at: row.created_at,
-    total: Number(row.estimated_cost ?? 0),
-    balance: Number(row.balance ?? 0),
-    status: row.status,
-    customer_name: formatCustomerName(row.customers),
-  }))
+  // Build a Set of work_order IDs that already have an approved ARCA invoice.
+  // This is the client-side "NOT EXISTS" filter.
+  const invoicedOrderIds = new Set<string>(
+    (approvedInvoicesRes.data ?? []).map((r: any) => r.work_order_id as string)
+  )
+
+  const rawAllOrders = (allOrdersRes.data ?? []) as any[]
+  const unbilledOrders: UnbilledOrderItem[] = rawAllOrders
+    .filter((row) => !invoicedOrderIds.has(row.id))
+    .map((row) => ({
+      id: row.id,
+      order_number: row.order_number,
+      created_at: row.created_at,
+      total: Number(row.estimated_cost ?? 0),
+      balance: Number(row.balance ?? 0),
+      status: row.status,
+      customer_name: formatCustomerName(row.customers),
+    }))
 
   const rawPendingDebt = (pendingDebtRes.data ?? []) as any[]
   const pendingDebt: PendingDebtItem[] = rawPendingDebt.map((row) => {
