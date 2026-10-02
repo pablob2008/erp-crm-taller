@@ -161,7 +161,7 @@ export async function addOrderPayment(
     });
 
   if (error) throw error;
-  // Trigger trg_sync_cash_movement_to_work_order handles total_paid update automatically.
+  await recalculateOrderFinancials(supabase, orderId);
 }
 
 export async function updateTask(supabase: SupabaseClient, taskId: string, title: string) {
@@ -194,21 +194,34 @@ export async function deleteItem(supabase: SupabaseClient, itemId: string) {
   if (error) throw error;
 }
 
-// NOTE: total_paid recalculation is handled entirely by the DB trigger
-// fn_sync_cash_movement_to_work_order (migration 20260902000000).
-// The previous client-side recalculateOrderFinancials() has been removed.
-// Categories that count toward total_paid: work_order_payment, work_order_advance, manual_income.
 
-export async function updatePayment(supabase: SupabaseClient, paymentId: string, _orderId: string, amount: number) {
-  // The trigger handles total_paid update automatically on UPDATE.
-  const { error } = await supabase.from('cash_movements').update({ net_amount: amount }).eq('id', paymentId);
+export async function recalculateOrderFinancials(supabase: import('@supabase/supabase-js').SupabaseClient, orderId: string) {
+  // Only income movements of category 'work_order_payment' count toward total_paid.
+  // Expenses (purchase_payment, manual_expense) and advances of other categories
+  // must never inflate total_paid — doing so would produce a negative or zero balance
+  // for orders that had purchase costs charged against them.
+  const { data: payments } = await supabase.from('cash_movements')
+    .select('net_amount')
+    .eq('work_order_id', orderId)
+    .eq('type', 'income')
+    .in('category', ['work_order_payment', 'work_order_advance', 'manual_income']);
+  
+  const totalPaid = payments?.reduce((acc, p) => acc + Number(p.net_amount || 0), 0) || 0;
+
+  const { error } = await supabase.from('work_orders').update({ total_paid: totalPaid }).eq('id', orderId);
   if (error) throw error;
 }
 
-export async function deletePayment(supabase: SupabaseClient, paymentId: string, _orderId: string) {
-  // The trigger handles total_paid update automatically on DELETE.
+export async function updatePayment(supabase: SupabaseClient, paymentId: string, orderId: string, amount: number) {
+  const { error } = await supabase.from('cash_movements').update({ net_amount: amount }).eq('id', paymentId);
+  if (error) throw error;
+  await recalculateOrderFinancials(supabase, orderId);
+}
+
+export async function deletePayment(supabase: SupabaseClient, paymentId: string, orderId: string) {
   const { error } = await supabase.from('cash_movements').delete().eq('id', paymentId);
   if (error) throw error;
+  await recalculateOrderFinancials(supabase, orderId);
 }
 
 export async function markItemAsPurchased(
@@ -318,7 +331,7 @@ export async function addRandomPayment(
     description: data.description,
   });
   if (error) throw error;
-  // Trigger handles total_paid update automatically.
+  await recalculateOrderFinancials(supabase, orderId);
 }
 
 // ─── Task 1.5: deliverOrder ───────────────────────────────────────────────────
@@ -354,7 +367,7 @@ export async function deliverOrder(
       description: 'Cobro al entregar la orden',
     });
     if (movError) throw movError;
-    // Trigger trg_sync_cash_movement_to_work_order handles total_paid update automatically.
+    await recalculateOrderFinancials(supabase, orderId);
   }
 
   // Step 2: fetch updated balance to compose auto-note
