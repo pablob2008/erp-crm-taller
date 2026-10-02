@@ -85,14 +85,31 @@ export async function fetchCustomers(
 
   const lifetimeValues: Record<string, number> = {};
   if (customerIds.length > 0) {
-    const { data: salesData, error: salesError } = await supabase
-      .from("sales")
-      .select("customer_id, total")
-      .in("customer_id", customerIds);
+    const [salesRes, woRes] = await Promise.all([
+      supabase
+        .from("sales")
+        .select("customer_id, total, work_order_id, status")
+        .in("customer_id", customerIds),
+      supabase
+        .from("work_orders")
+        .select("customer_id, total_paid, status")
+        .in("customer_id", customerIds)
+        .neq("status", "cancelled"),
+    ]);
 
-    if (!salesError && salesData) {
-      salesData.forEach((s: any) => {
-        if (s.customer_id) {
+    if (!woRes.error && woRes.data) {
+      woRes.data.forEach((wo: any) => {
+        if (wo.customer_id) {
+          lifetimeValues[wo.customer_id] =
+            (lifetimeValues[wo.customer_id] || 0) + Number(wo.total_paid || 0);
+        }
+      });
+    }
+
+    if (!salesRes.error && salesRes.data) {
+      salesRes.data.forEach((s: any) => {
+        // Include retail sales not linked to a work order to prevent double counting
+        if (s.customer_id && !s.work_order_id && s.status !== "voided") {
           lifetimeValues[s.customer_id] =
             (lifetimeValues[s.customer_id] || 0) + Number(s.total || 0);
         }
@@ -129,10 +146,19 @@ export async function searchCustomers(supabase: SupabaseClient, query: string): 
   return data as Customer[];
 }
 
+export interface CreateCustomerInput {
+  first_name: string;
+  last_name: string;
+  tax_id?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+}
+
 export async function createCustomer(
   supabase: SupabaseClient,
   branchId: string,
-  data: NewCustomerFormValues
+  data: NewCustomerFormValues | CreateCustomerInput
 ): Promise<Customer> {
   const { data: customer, error } = await supabase
     .from("customers")
@@ -160,11 +186,11 @@ export async function fetchCustomerHistorySnapshot(
   const [woRes, salesRes] = await Promise.all([
     supabase
       .from("work_orders")
-      .select("id", { count: "exact", head: true })
+      .select("id, total_paid, status")
       .eq("customer_id", customerId),
     supabase
       .from("sales")
-      .select("total")
+      .select("total, work_order_id, status")
       .eq("customer_id", customerId),
   ]);
 
@@ -177,15 +203,18 @@ export async function fetchCustomerHistorySnapshot(
     throw salesRes.error;
   }
 
-  const orderCount = woRes.count ?? 0;
-  const lifetimeValue = (salesRes.data || []).reduce(
-    (acc, curr) => acc + Number(curr.total || 0),
-    0
-  );
+  const orderCount = (woRes.data || []).length;
+  const woLtv = (woRes.data || [])
+    .filter((wo: any) => wo.status !== "cancelled")
+    .reduce((acc, curr) => acc + Number(curr.total_paid || 0), 0);
+
+  const directSalesLtv = (salesRes.data || [])
+    .filter((s: any) => !s.work_order_id && s.status !== "voided")
+    .reduce((acc, curr) => acc + Number(curr.total || 0), 0);
 
   return {
     orderCount,
-    lifetimeValue,
+    lifetimeValue: woLtv + directSalesLtv,
   };
 }
 
@@ -276,4 +305,182 @@ export async function deleteCustomer(
     throw error;
   }
 }
+
+export interface CustomerWorkOrder {
+  id: string;
+  order_number: string;
+  device_brand: string;
+  device_model: string;
+  reported_problem: string;
+  status: string;
+  estimated_cost: number;
+  balance: number;
+  created_at: string;
+  estimated_delivery_at?: string | null;
+}
+
+export async function fetchCustomerWorkOrders(
+  supabase: SupabaseClient,
+  customerId: string
+): Promise<CustomerWorkOrder[]> {
+  const { data, error } = await supabase
+    .from("work_orders")
+    .select(
+      "id, order_number, device_brand, device_model, reported_problem, status, estimated_cost, balance, created_at, estimated_delivery_at"
+    )
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching customer work orders:", error);
+    throw error;
+  }
+
+  return (data || []) as CustomerWorkOrder[];
+}
+
+export interface CustomerCashMovement {
+  id: string;
+  work_order_id?: string | null;
+  type: string;
+  category?: string | null;
+  net_amount: number;
+  payment_method?: string | null;
+  description?: string | null;
+  created_at: string;
+}
+
+export interface CustomerFinancials {
+  lifetimeValue: number;
+  pendingBalance: number;
+  movements: CustomerCashMovement[];
+}
+
+export async function fetchCustomerFinancials(
+  supabase: SupabaseClient,
+  customerId: string
+): Promise<CustomerFinancials> {
+  const [salesRes, woRes] = await Promise.all([
+    supabase
+      .from("sales")
+      .select("id, total, work_order_id, status, cash_movement_id")
+      .eq("customer_id", customerId),
+    supabase
+      .from("work_orders")
+      .select("id, balance, status, total_paid, estimated_cost")
+      .eq("customer_id", customerId),
+  ]);
+
+  if (salesRes.error) {
+    console.error("Error fetching customer sales:", salesRes.error);
+    throw salesRes.error;
+  }
+  if (woRes.error) {
+    console.error("Error fetching customer work orders for financials:", woRes.error);
+    throw woRes.error;
+  }
+
+  const nonCancelledOrders = (woRes.data || []).filter(
+    (wo: any) => wo.status !== "cancelled"
+  );
+
+  // 1. Revenue from work orders (total collected/paid on non-cancelled orders)
+  const woLtv = nonCancelledOrders.reduce(
+    (acc: number, curr: any) => acc + Number(curr.total_paid || 0),
+    0
+  );
+
+  // 2. Revenue from direct POS retail sales (exclude work_order_id to avoid double counting)
+  const directSalesLtv = (salesRes.data || [])
+    .filter((s: any) => !s.work_order_id && s.status !== "voided")
+    .reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0);
+
+  const lifetimeValue = woLtv + directSalesLtv;
+
+  // Pending balance owed across open or credit orders
+  const pendingBalance = nonCancelledOrders.reduce(
+    (acc: number, curr: any) => acc + Number(curr.balance || 0),
+    0
+  );
+
+  const orderIds = (woRes.data || []).map((wo: any) => wo.id);
+  const salesCashMovementIds = (salesRes.data || [])
+    .map((s: any) => s.cash_movement_id)
+    .filter(Boolean);
+
+  let movements: CustomerCashMovement[] = [];
+
+  const movPromises: Promise<any>[] = [];
+  if (orderIds.length > 0) {
+    movPromises.push(
+      Promise.resolve(
+        supabase
+          .from("cash_movements")
+          .select(
+            "id, work_order_id, type, category, net_amount, payment_method, description, created_at"
+          )
+          .in("work_order_id", orderIds)
+      )
+    );
+  }
+  if (salesCashMovementIds.length > 0) {
+    movPromises.push(
+      Promise.resolve(
+        supabase
+          .from("cash_movements")
+          .select(
+            "id, work_order_id, type, category, net_amount, payment_method, description, created_at"
+          )
+          .in("id", salesCashMovementIds)
+      )
+    );
+  }
+
+  if (movPromises.length > 0) {
+    const movResults = await Promise.all(movPromises);
+    const allMovs: CustomerCashMovement[] = [];
+    const seenIds = new Set<string>();
+
+    movResults.forEach((res) => {
+      if (!res.error && res.data) {
+        res.data.forEach((m: CustomerCashMovement) => {
+          if (!seenIds.has(m.id)) {
+            seenIds.add(m.id);
+            allMovs.push(m);
+          }
+        });
+      }
+    });
+
+    allMovs.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    movements = allMovs.slice(0, 50);
+  }
+
+  return {
+    lifetimeValue,
+    pendingBalance,
+    movements,
+  };
+}
+
+export async function fetchCustomerById(
+  supabase: SupabaseClient,
+  customerId: string
+): Promise<Customer> {
+  const { data, error } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("id", customerId)
+    .single();
+
+  if (error) {
+    console.error("Error fetching customer by id:", error);
+    throw error;
+  }
+
+  return data as Customer;
+}
+
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useSearchParams, useNavigate } from "react-router-dom"
 import { useSupabase } from "@/context/SupabaseProvider"
 import {
   Search,
@@ -16,6 +16,8 @@ import {
   FileText,
   AlertTriangle,
   Loader2,
+  Plus,
+  Eye,
 } from "lucide-react"
 import {
   fetchCustomers,
@@ -46,6 +48,7 @@ const PAGE_SIZE = 12
 export default function CustomersPage() {
   const { supabase, profile } = useSupabase()
   const { toast } = useToast()
+  const navigate = useNavigate()
 
   // URL-driven search
   const [searchParams, setSearchParams] = useSearchParams()
@@ -59,7 +62,8 @@ export default function CustomersPage() {
   const [inputValue, setInputValue] = useState(urlQuery)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Edit Modal State
+  // Create & Edit Modal State
+  const [createOpen, setCreateOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
 
   // Delete Flow State
@@ -179,7 +183,7 @@ export default function CustomersPage() {
       <div className="pointer-events-none absolute -top-10 -left-10 w-80 h-80 rounded-full bg-kpi-blue/6 blur-3xl -z-10" />
       <div className="pointer-events-none absolute top-60 right-0 w-64 h-64 rounded-full bg-kpi-amber/5 blur-3xl -z-10" />
 
-      {/* Header + Search */}
+      {/* Header + Search + Actions */}
       <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Directorio de Clientes</h2>
@@ -189,15 +193,24 @@ export default function CustomersPage() {
               : `${totalCount} ${totalCount === 1 ? "cliente registrado" : "clientes registrados"}`}
           </p>
         </div>
-        <div className="relative max-w-sm w-full">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="search"
-            value={inputValue}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Buscar por nombre, teléfono, DNI, email..."
-            className="flex h-9 w-full rounded-full bg-background px-3 py-1 text-sm shadow-neu-inset transition-shadow placeholder:text-muted-foreground focus-visible:outline-none pl-10"
-          />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <div className="relative max-w-sm w-full">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="search"
+              value={inputValue}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Buscar por nombre, teléfono, DNI, email..."
+              className="flex h-9 w-full rounded-full bg-background px-3 py-1 text-sm shadow-neu-inset transition-shadow placeholder:text-muted-foreground focus-visible:outline-none pl-10"
+            />
+          </div>
+          <Button
+            onClick={() => setCreateOpen(true)}
+            className="gap-2 shrink-0 rounded-full shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Nuevo Cliente
+          </Button>
         </div>
       </div>
 
@@ -293,8 +306,11 @@ export default function CustomersPage() {
                       >
                         <Users className="w-5 h-5" />
                       </div>
-                      <div className="min-w-0">
-                        <h3 className="font-bold text-lg text-foreground truncate">
+                      <div
+                        className="min-w-0 cursor-pointer group"
+                        onClick={() => navigate(`/customers/${c.id}`)}
+                      >
+                        <h3 className="font-bold text-lg text-foreground truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
                           {c.first_name} {c.last_name}
                         </h3>
                         {c.tax_id && (
@@ -306,8 +322,16 @@ export default function CustomersPage() {
                       </div>
                     </div>
 
-                    {/* Action buttons (Edit / Delete) */}
+                    {/* Action buttons (View Profile / Edit / Delete) */}
                     <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/customers/${c.id}`)}
+                        title="Ver Perfil 360°"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => setEditingCustomer(c)}
@@ -404,6 +428,16 @@ export default function CustomersPage() {
                         Email
                       </a>
                     ) : null}
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/customers/${c.id}`)}
+                      className="ml-auto h-7 text-xs px-2.5 gap-1.5 border-border/40 hover:bg-muted/50"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Perfil 360°
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -447,10 +481,21 @@ export default function CustomersPage() {
         </div>
       )}
 
+      {/* Customer Create Modal */}
+      <CustomerEditModal
+        open={createOpen}
+        mode="create"
+        onClose={() => setCreateOpen(false)}
+        onSuccess={() => {
+          loadCustomers()
+        }}
+      />
+
       {/* Customer Edit Modal */}
       <CustomerEditModal
         open={!!editingCustomer}
         customer={editingCustomer}
+        mode="edit"
         onClose={() => setEditingCustomer(null)}
         onSuccess={() => {
           loadCustomers()

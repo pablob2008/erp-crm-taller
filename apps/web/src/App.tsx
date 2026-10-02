@@ -7,6 +7,7 @@ import OrdersPage from "@/pages/OrdersPage"
 import NewWorkOrderPage from "@/pages/NewWorkOrderPage"
 import WorkOrderDetailsPage from "@/pages/WorkOrderDetailsPage"
 import CustomersPage from "@/pages/CustomersPage"
+import CustomerProfilePage from "@/pages/CustomerProfilePage"
 import InventoryPage from "@/pages/InventoryPage"
 import FinancePage from "@/pages/FinancePage"
 import POSPage from "@/pages/POSPage"
@@ -30,6 +31,7 @@ function App() {
             <Route path="/orders/new" element={<NewWorkOrderPage />} />
             <Route path="/orders/:id" element={<WorkOrderDetailsPage />} />
             <Route path="/customers" element={<CustomersPage />} />
+            <Route path="/customers/:id" element={<CustomerProfilePage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/pos" element={<POSPage />} />
             <Route path="/finance" element={<FinancePage />} />
