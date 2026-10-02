@@ -26,7 +26,6 @@ DECLARE
     -- Categories that count as a customer payment toward total_paid
     INCOME_CATEGORIES CONSTANT TEXT[] := ARRAY[
         'work_order_payment',
-        'work_order_advance',
         'manual_income'
     ];
 BEGIN

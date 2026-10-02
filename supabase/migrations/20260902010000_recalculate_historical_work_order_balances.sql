@@ -20,7 +20,7 @@ BEGIN
           FROM public.cash_movements
          WHERE work_order_id = r.id
            AND type = 'income'
-           AND category IN ('work_order_payment', 'work_order_advance', 'manual_income');
+           AND category IN ('work_order_payment', 'manual_income');
 
         -- Update the order (this will automatically recalculate the generated "balance" column)
         UPDATE public.work_orders
