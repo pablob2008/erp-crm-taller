@@ -135,6 +135,15 @@ FinancePage
 
 ---
 
+
+### RDD Fix — Arquitectura de Base de Datos (Single Source of Truth)
+- **Problema detectado tras despliegue**: Al aplicar manualmente la migración del trigger (`20260902000000_extend_cash_movement_trigger.sql`), los saldos de los equipos a entregar y los históricos de los clientes quedaron erróneos. El motivo es que los triggers en Postgres actúan de forma incremental (`AFTER INSERT/UPDATE`). Si existían ingresos manuales o señas en la tabla `cash_movements` registrados *antes* de que el trigger fuera actualizado, el `total_paid` de esas órdenes nunca sumó ese dinero.
+- Al haber eliminado la función `recalculateOrderFinancials()` del lado del cliente (que antes forzaba el recálculo y ocultaba la desincronización de la base de datos), el desfasaje histórico salió a la luz.
+- **Solución implementada**:
+  1. Se mantuvo la eliminación del parche client-side `recalculateOrderFinancials()` para respetar estrictamente la arquitectura donde la Base de Datos es la única fuente de la verdad.
+  2. Se creó una nueva migración: `20260902010000_recalculate_historical_work_order_balances.sql`. Este script recalcula de forma absoluta y orgánica el campo `total_paid` de absolutamente todas las órdenes sumando sus `cash_movements` históricos. Al correr esta migración, el pasado queda 100% saneado, y de aquí en adelante el trigger se encarga de mantenerlo perfecto.
+  3. Se solucionó también en `dashboard.ts` el problema de las "entregas desde las órdenes": si una orden se entrega vinculándola a una venta de mostrador (POS), la factura fiscal se asocia al `sale`. Ahora el widget `UnbilledWidget` busca las facturas vinculadas indirectamente por el POS para sacar del panel a las órdenes correctamente facturadas.
+
 ## Checklist de producción post-auditoría
 
 - [x] `UnbilledWidget` excluye órdenes con ARCA aprobada

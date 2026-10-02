@@ -303,6 +303,7 @@ export async function fetchDashboardMetrics(
     readyOrDeliveredOrdersRes,
     unbilledSalesRes,
     approvedInvoicesRes,
+    invoicedSalesRes,
     allOrdersRes,
     pendingDebtRes,
   ] = await Promise.all([
@@ -365,6 +366,13 @@ export async function fetchDashboardMetrics(
       .eq("resultado", "A")
       .not("work_order_id", "is", null),
 
+        // 4c. Fetch all sales that are invoiced and linked to a work order
+    supabase
+      .from("sales")
+      .select("work_order_id")
+      .not("arca_invoice_id", "is", null)
+      .not("work_order_id", "is", null),
+
     // 4b. All non-cancelled work orders in terminal/near-terminal states.
     // We only show orders that are "ready" or "delivered" as "unbilled" — orders
     // still in_progress, waiting_parts, etc. cannot be invoiced yet.
@@ -407,6 +415,7 @@ export async function fetchDashboardMetrics(
   if (readyOrDeliveredOrdersRes.error) throw readyOrDeliveredOrdersRes.error
   if (unbilledSalesRes.error) throw unbilledSalesRes.error
   if (approvedInvoicesRes.error) throw approvedInvoicesRes.error
+  if (invoicedSalesRes.error) throw invoicedSalesRes.error
   if (allOrdersRes.error) throw allOrdersRes.error
   if (pendingDebtRes.error) throw pendingDebtRes.error
 
@@ -447,11 +456,12 @@ export async function fetchDashboardMetrics(
     work_order_id: row.work_order_id,
   }))
 
-  // Build a Set of work_order IDs that already have an approved ARCA invoice.
-  // This is the client-side "NOT EXISTS" filter.
-  const invoicedOrderIds = new Set<string>(
-    (approvedInvoicesRes.data ?? []).map((r: any) => r.work_order_id as string)
-  )
+    // Build a Set of work_order IDs that already have an approved ARCA invoice.
+  // This includes direct ARCA invoices on the work order, OR invoices on a POS sale linked to the order.
+  const invoicedOrderIds = new Set<string>([
+    ...(approvedInvoicesRes.data ?? []).map((r: any) => r.work_order_id as string),
+    ...(invoicedSalesRes.data ?? []).map((r: any) => r.work_order_id as string)
+  ])
 
   const rawAllOrders = (allOrdersRes.data ?? []) as any[]
   const unbilledOrders: UnbilledOrderItem[] = rawAllOrders
