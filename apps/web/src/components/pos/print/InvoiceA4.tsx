@@ -148,8 +148,14 @@ export function InvoiceA4({ sale, saleItems, branch }: InvoiceA4Props) {
                     <td>{formatDate(sale.created_at)}</td>
                   </tr>
                   <tr>
-                    <td style={{ fontWeight: 'bold', paddingRight: '8px' }}>N° Comp.:</td>
-                    <td>{formatInvoiceNumber(sale.invoice_number)}</td>
+                    <td style={{ fontWeight: 'bold', paddingRight: '8px' }}>
+                      {isFiscal ? 'N° Factura:' : 'N° Ticket:'}
+                    </td>
+                    <td style={{ fontFamily: isFiscal ? 'inherit' : 'monospace' }}>
+                      {isFiscal
+                        ? formatInvoiceNumber(sale.invoice_number)
+                        : `TKT-${sale.id.slice(0, 8).toUpperCase()}`}
+                    </td>
                   </tr>
                   {branch.tax_id && (
                     <tr>

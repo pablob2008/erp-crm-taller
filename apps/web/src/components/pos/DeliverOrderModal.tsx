@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label"
 import { useSupabase } from "@/context/SupabaseProvider"
 import { searchOrderByNumber } from "@/lib/services/pos"
 import type { OrderSearchResult } from "@/lib/services/pos"
+import { OrderStatusBadge } from "@/components/ui/order-status-badge"
+import { formatPrice } from "@/lib/formatters"
 
 interface DeliverOrderModalProps {
   open: boolean
@@ -111,18 +113,28 @@ export function DeliverOrderModal({ open, branchId, onClose, onConfirm }: Delive
           {result && (
             <div className="rounded-xl border border-border/40 bg-background/60 p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-foreground">
+                <span className="text-sm font-semibold text-foreground font-mono">
                   #{result.order_number}
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium capitalize">
-                  {result.status}
-                </span>
+                <OrderStatusBadge status={result.status} size="sm" />
               </div>
-              <p className="text-sm text-muted-foreground">{result.customer_name}</p>
-              <div className="pt-1 border-t border-border/30">
-                <span className="text-xs text-muted-foreground">Saldo pendiente: </span>
-                <span className={`text-lg font-bold ${result.balance > 0 ? "text-destructive" : "text-primary"}`}>
-                  ${result.balance.toLocaleString("es-AR")}
+              <div>
+                <p className="text-sm font-semibold text-foreground">{result.customer_name}</p>
+                {(result.device_brand || result.device_model) && (
+                  <p className="text-xs text-muted-foreground">
+                    {result.device_brand} {result.device_model}
+                  </p>
+                )}
+                {result.reported_problem && (
+                  <p className="text-xs text-muted-foreground/80 line-clamp-1 italic mt-0.5">
+                    "{result.reported_problem}"
+                  </p>
+                )}
+              </div>
+              <div className="pt-1 border-t border-border/30 flex items-center justify-between">
+                <span className="text-xs text-muted-foreground font-medium">Saldo pendiente: </span>
+                <span className={`text-lg font-bold font-mono ${result.balance > 0 ? "text-kpi-amber" : "text-kpi-green"}`}>
+                  {formatPrice(result.balance)}
                 </span>
               </div>
             </div>

@@ -116,12 +116,14 @@ export function InvoiceTicket({ sale, saleItems, branch }: InvoiceTicketProps) {
           <span style={bold}>Fecha: </span>
           <span>{formatDate(sale.created_at)}</span>
         </div>
-        {sale.invoice_number && (
-          <div>
-            <span style={bold}>N° Comp.: </span>
-            <span>{sale.invoice_number}</span>
-          </div>
-        )}
+        <div>
+          <span style={bold}>{isFiscal ? "N° Factura: " : "N° Ticket: "}</span>
+          <span style={{ fontFamily: isFiscal ? "inherit" : "monospace" }}>
+            {isFiscal
+              ? sale.invoice_number || "S/N"
+              : `TKT-${sale.id.slice(0, 8).toUpperCase()}`}
+          </span>
+        </div>
       </div>
 
       {/* ── Customer doc info ─────────────────────────────────────────── */}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
-import { Package, ShoppingCart, AlertTriangle, Search, Layers, RefreshCw, Wrench, Plus } from "lucide-react"
+import { Package, ShoppingCart, AlertTriangle, Layers, RefreshCw, Wrench, Plus } from "lucide-react"
 import { useSupabase } from "@/context/SupabaseProvider"
 import {
   fetchPurchaseKPIs,
@@ -15,6 +15,7 @@ import { PurchaseExpenseModal } from "@/components/purchases/PurchaseExpenseModa
 import { AddPurchaseModal } from "@/components/purchases/AddPurchaseModal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { SearchInput } from "@/components/ui/input"
 
 const STATUS_TABS = ["active", "pending", "all"] as const
 type StatusTab = typeof STATUS_TABS[number]
@@ -153,19 +154,16 @@ export function PurchasesBoard() {
       {/* Header Actions for Purchases */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative max-w-sm w-full">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="search"
+          <div className="w-full sm:w-72">
+            <SearchInput
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar repuesto, código, proveedor..."
-              className="flex h-9 w-full rounded-full bg-background px-3 py-1 text-sm shadow-neu-inset transition-shadow placeholder:text-muted-foreground focus-visible:outline-none pl-10"
             />
           </div>
           <Button
             variant="default"
-            className="rounded-full h-9 gap-1.5 whitespace-nowrap"
+            className="rounded-xl h-9 gap-1.5 whitespace-nowrap shadow-sm"
             onClick={() => setIsAddModalOpen(true)}
           >
             <Plus className="h-4 w-4" />
@@ -174,7 +172,7 @@ export function PurchasesBoard() {
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full h-9 w-9 text-muted-foreground hover:text-foreground shrink-0"
+            className="rounded-xl h-9 w-9 text-muted-foreground hover:text-foreground shrink-0"
             onClick={() => { loadKPIs(); loadPurchases() }}
             title="Recargar"
           >

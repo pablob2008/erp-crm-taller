@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { WorkOrderComposite } from "@/lib/services/work-order-details"
 import type { RandomExpenseData, DeliveryData, RandomPaymentData } from "@/lib/services/work-order-details"
 import { useSupabase } from "@/context/SupabaseProvider"
 import { emitInvoice, fetchInvoiceByTarget, type ArcaInvoice, getVoucherTypeLabel, formatInvoiceFullNumber } from "@/lib/services/arca"
+import { formatPrice } from "@/lib/formatters"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -417,18 +418,54 @@ export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpe
   const [invoiceLoading, setInvoiceLoading] = useState(true)
   const [emitting, setEmitting] = useState(false)
 
-  // Check if an invoice already exists for this order
-  useState(() => {
-    ;(async () => {
+  const isOrderTerminal = order.status === "ready_for_pickup" || order.status === "delivered"
+
+  // Check if an invoice already exists for this order (directly or via a linked POS sale)
+  useEffect(() => {
+    let active = true
+    async function checkInvoice() {
       try {
-        const existing = await fetchInvoiceByTarget(supabase, "work_order", order.id)
-        setInvoice(existing)
-      } catch { /* ignore */ }
-      finally { setInvoiceLoading(false) }
-    })()
-  })
+        setInvoiceLoading(true)
+        // 1. Direct check in arca_invoices by work_order_id
+        const direct = await fetchInvoiceByTarget(supabase, "work_order", order.id)
+        if (direct && active) {
+          setInvoice(direct)
+          return
+        }
+
+        // 2. Cross-check if any POS sale linked to this order has an approved invoice
+        const { data: salesRows } = await supabase
+          .from("sales")
+          .select("arca_invoices (*)")
+          .eq("work_order_id", order.id)
+          .not("arca_invoice_id", "is", null)
+          .limit(1)
+
+        if (salesRows && salesRows.length > 0 && (salesRows[0] as any)?.arca_invoices && active) {
+          setInvoice((salesRows[0] as any).arca_invoices as ArcaInvoice)
+        }
+      } catch (err) {
+        console.error("Error checking invoice for order:", err)
+      } finally {
+        if (active) setInvoiceLoading(false)
+      }
+    }
+    checkInvoice()
+    return () => {
+      active = false
+    }
+  }, [supabase, order.id])
 
   const handleEmitInvoice = async () => {
+    if (!isOrderTerminal) {
+      toast({
+        variant: "destructive",
+        title: "Orden no finalizada",
+        description: "La orden debe estar en 'Listo para Retiro' o 'Entregado' para poder facturarse.",
+      })
+      return
+    }
+
     setEmitting(true)
     try {
       const res = await emitInvoice(supabase, {
@@ -437,12 +474,11 @@ export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpe
       })
       if (res.success) {
         toast({
-          title: res.already_invoiced ? "Comprobante existente" : "Factura emitida",
+          title: res.already_invoiced ? "Comprobante existente" : "Factura emitida exitosamente",
           description: res.mock
             ? `CAE simulado: ${res.cae} (modo pruebas)`
-            : `CAE: ${res.cae}`,
+            : `CAE otorgado por AFIP: ${res.cae}`,
         })
-        // Reload the invoice record
         const updated = await fetchInvoiceByTarget(supabase, "work_order", order.id)
         setInvoice(updated)
       } else {
@@ -512,45 +548,55 @@ export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpe
               <Truck className="h-4 w-4 mr-1" />
               Entregar Orden
             </Button>
-            {/* Botón Emitir Factura Electrónica */}
-            <Button
-              variant={invoice ? "outline" : "default"}
-              size="sm"
-              className="shadow-sm border border-border/40"
-              onClick={handleEmitInvoice}
-              disabled={emitting || invoiceLoading || !!invoice}
-            >
-              {emitting ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : invoice ? (
-                <CheckCircle2 className="h-4 w-4 mr-1 text-green-600" />
-              ) : (
-                <FileText className="h-4 w-4 mr-1" />
-              )}
-              {invoice ? "Facturado" : "Emitir Factura"}
-            </Button>
+            {/* Botón Emitir Factura Electrónica blindado */}
+            {invoice ? (
+              <Badge variant="success" size="lg" className="gap-1.5 h-9 px-3">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Facturado C</span>
+              </Badge>
+            ) : (
+              <Button
+                variant="default"
+                size="sm"
+                className="shadow-sm border border-border/40"
+                onClick={handleEmitInvoice}
+                disabled={emitting || invoiceLoading || !isOrderTerminal}
+                title={
+                  !isOrderTerminal
+                    ? "Solo se puede emitir factura cuando la orden esté terminada o entregada."
+                    : "Emitir Factura C electrónica con CAE ante AFIP/ARCA"
+                }
+              >
+                {emitting ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4 mr-1" />
+                )}
+                <span>Emitir Factura</span>
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div className="p-4 rounded-xl bg-background/40 border border-border/40 shadow-sm backdrop-blur-md flex flex-col items-center justify-center">
-              <span className="text-sm text-muted-foreground mb-1 text-center">Costo Estimado</span>
-              <span className="text-xl font-bold">${(order.estimated_cost || 0).toFixed(2)}</span>
+              <span className="text-sm text-muted-foreground mb-1 text-center font-medium">Costo Estimado</span>
+              <span className="text-xl font-bold font-mono">{formatPrice(order.estimated_cost || 0)}</span>
             </div>
             <div className="p-4 rounded-xl bg-background/40 border border-border/40 shadow-sm backdrop-blur-md flex flex-col items-center justify-center">
-              <span className="text-sm text-muted-foreground mb-1 text-center">Total Pagado</span>
-              <span className="text-xl font-bold text-green-600">${(order.total_paid || 0).toFixed(2)}</span>
+              <span className="text-sm text-muted-foreground mb-1 text-center font-medium">Total Pagado</span>
+              <span className="text-xl font-bold font-mono text-kpi-green">{formatPrice(order.total_paid || 0)}</span>
             </div>
             <div className="p-4 rounded-xl bg-background/40 border border-border/40 shadow-sm backdrop-blur-md flex flex-col items-center justify-center">
-              <span className="text-sm text-muted-foreground mb-1 text-center">Saldo Pendiente</span>
-              <span className={`text-xl font-bold ${order.balance > 0 ? 'text-destructive' : 'text-primary'}`}>
-                ${(order.balance || 0).toFixed(2)}
+              <span className="text-sm text-muted-foreground mb-1 text-center font-medium">Saldo Pendiente</span>
+              <span className={`text-xl font-bold font-mono ${order.balance > 0 ? "text-kpi-amber" : "text-kpi-green"}`}>
+                {formatPrice(order.balance || 0)}
               </span>
             </div>
             <div className="p-4 rounded-xl bg-background/40 border border-border/40 shadow-sm backdrop-blur-md flex flex-col items-center justify-center">
-              <span className="text-sm text-muted-foreground mb-1 text-center">Ganancia Neta</span>
-              <span className={`text-xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                ${netProfit.toFixed(2)}
+              <span className="text-sm text-muted-foreground mb-1 text-center font-medium">Ganancia Neta</span>
+              <span className={`text-xl font-bold font-mono ${netProfit >= 0 ? "text-kpi-green" : "text-destructive"}`}>
+                {formatPrice(netProfit)}
               </span>
             </div>
           </div>

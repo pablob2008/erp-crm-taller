@@ -157,6 +157,7 @@ Deno.serve(async (req) => {
     let importeTotal = 0;
     let targetCustomerId: string | null = null;
     let isService = false; // true if the invoice involves services (repairs)
+    let linkedWorkOrderIdFromSale: string | null = null;
 
     if (target_type === "work_order") {
       const { data: order, error: orderError } = await supabase
@@ -206,32 +207,26 @@ Deno.serve(async (req) => {
       if (sale.arca_invoice_id)
         throw new Error("Esta venta ya tiene un comprobante fiscal asociado.");
 
-      importeTotal = Number(sale.total || 0);
-
-      // If the POS sale includes delivery of a work order, the sale total
-      // only reflects the balance collected. Fiscally, the invoice must cover
-      // the FULL repair cost plus any extra retail products.
+      // Check if linked work order was already invoiced
       if (sale.work_order_id) {
-        const { data: wo } = await supabase
-          .from("work_orders")
-          .select("estimated_cost")
-          .eq("id", sale.work_order_id)
-          .single();
-          
-        if (wo) {
-          const { data: items } = await supabase
-            .from("sale_items")
-            .select("total_price")
-            .eq("sale_id", sale.id)
-            .ilike("description", "Saldo Orden%");
-            
-          const balancePaidInPos = items && items.length > 0 ? Number(items[0].total_price || 0) : 0;
-          const extraProductsTotal = importeTotal - balancePaidInPos;
-          importeTotal = Number(wo.estimated_cost || 0) + extraProductsTotal;
+        linkedWorkOrderIdFromSale = sale.work_order_id;
+        const { data: woInvoice } = await supabase
+          .from("arca_invoices")
+          .select("id, cae, cbte_nro")
+          .eq("work_order_id", sale.work_order_id)
+          .eq("resultado", "A")
+          .maybeSingle();
+
+        if (woInvoice) {
+          throw new Error(
+            `La orden de trabajo vinculada a esta venta ya fue facturada con Factura C Nº ${woInvoice.cbte_nro} (CAE: ${woInvoice.cae}).`
+          );
         }
-        isService = true; // Mixed: repair + products
+        isService = true; // Service repair included
       }
 
+      // Exactly the total charged and itemized in this checkout
+      importeTotal = Number(sale.total || 0);
       targetCustomerId = sale.customer_id;
 
       if (!doc_tipo && sale.customer_doc_type) {
@@ -472,9 +467,17 @@ Deno.serve(async (req) => {
       customer_id: targetCustomerId,
     };
 
-    if (target_type === "work_order") invoiceRow.work_order_id = target_id;
-    if (target_type === "sale") invoiceRow.sale_id = target_id;
-    if (target_type === "cash_movement") invoiceRow.cash_movement_id = target_id;
+    if (target_type === "work_order") {
+      invoiceRow.work_order_id = target_id;
+    } else if (target_type === "sale") {
+      invoiceRow.sale_id = target_id;
+      // If the sale delivered an order, link BOTH in arca_invoices
+      if (linkedWorkOrderIdFromSale) {
+        invoiceRow.work_order_id = linkedWorkOrderIdFromSale;
+      }
+    } else if (target_type === "cash_movement") {
+      invoiceRow.cash_movement_id = target_id;
+    }
 
     const { data: invoiceDb, error: insertError } = await supabase
       .from("arca_invoices")

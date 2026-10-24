@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useCallback } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { useSupabase } from "@/context/SupabaseProvider"
 import {
-  Search,
   Users,
   MessageCircle,
   Mail,
@@ -28,6 +27,12 @@ import {
 } from "@/lib/services/customers"
 import { CustomerEditModal } from "@/components/customers/CustomerEditModal"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
+import { SearchInput } from "@/components/ui/input"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Badge } from "@/components/ui/badge"
+import { GlassCard } from "@/components/ui/glass-card"
+import { formatPrice } from "@/lib/formatters"
 import {
   Dialog,
   DialogContent,
@@ -178,41 +183,34 @@ export default function CustomersPage() {
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   return (
-    <div className="relative space-y-6">
-      {/* Ambient background glows */}
-      <div className="pointer-events-none absolute -top-10 -left-10 w-80 h-80 rounded-full bg-kpi-blue/6 blur-3xl -z-10" />
-      <div className="pointer-events-none absolute top-60 right-0 w-64 h-64 rounded-full bg-kpi-amber/5 blur-3xl -z-10" />
-
-      {/* Header + Search + Actions */}
-      <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Directorio de Clientes</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {loading
-              ? "Cargando clientes..."
-              : `${totalCount} ${totalCount === 1 ? "cliente registrado" : "clientes registrados"}`}
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-          <div className="relative max-w-sm w-full">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="search"
-              value={inputValue}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Buscar por nombre, teléfono, DNI, email..."
-              className="flex h-9 w-full rounded-full bg-background px-3 py-1 text-sm shadow-neu-inset transition-shadow placeholder:text-muted-foreground focus-visible:outline-none pl-10"
-            />
+    <div className="flex flex-col gap-6">
+      {/* Universal Page Header with Search & New Customer Action */}
+      <PageHeader
+        title="Directorio de Clientes"
+        subtitle={
+          loading
+            ? "Cargando clientes..."
+            : `${totalCount} ${totalCount === 1 ? "cliente registrado" : "clientes registrados"}`
+        }
+        actions={
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+            <div className="w-full sm:w-80">
+              <SearchInput
+                value={inputValue}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Buscar por nombre, teléfono, DNI, email..."
+              />
+            </div>
+            <Button
+              onClick={() => setCreateOpen(true)}
+              className="gap-2 shrink-0 rounded-xl shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nuevo Cliente</span>
+            </Button>
           </div>
-          <Button
-            onClick={() => setCreateOpen(true)}
-            className="gap-2 shrink-0 rounded-full shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Nuevo Cliente
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Cards Grid */}
       {loading ? (
@@ -237,72 +235,58 @@ export default function CustomersPage() {
           ))}
         </div>
       ) : customers.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-4 py-24 text-muted-foreground">
-          <Users className="w-16 h-16 opacity-15" />
-          <p className="font-medium text-base">
-            {urlQuery
-              ? "No se encontraron clientes con ese filtro de búsqueda."
-              : "No hay clientes registrados aún."}
-          </p>
-          {!urlQuery && (
-            <p className="text-sm opacity-60">
-              Los clientes se registrarán automáticamente al crear órdenes de trabajo o ventas POS.
-            </p>
-          )}
-        </div>
+        <EmptyState
+          icon={<Users className="w-8 h-8" />}
+          title={
+            urlQuery
+              ? "No se encontraron clientes con ese filtro"
+              : "No hay clientes registrados aún"
+          }
+          description={
+            urlQuery
+              ? "Probá buscando por otro nombre, teléfono o número de documento."
+              : "Los clientes se registrarán automáticamente al crear órdenes o ventas."
+          }
+          action={
+            !urlQuery
+              ? {
+                  label: "Crear Primer Cliente",
+                  onClick: () => setCreateOpen(true),
+                  icon: <Plus className="w-4 h-4" />,
+                }
+              : undefined
+          }
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {customers.map((c) => {
             const orderCount = c.orderCount || 0
             const lifetimeValue = c.lifetimeValue || 0
-
-            // Dynamic styling based on customer activity
-            let s = {
-              bg: "bg-background/40 backdrop-blur-md",
-              border: "border-border/40",
-              text: "text-muted-foreground",
-              dot: "bg-muted-foreground",
-              glow: "shadow-sm",
-              accent: "text-muted-foreground",
-            }
-
-            if (orderCount >= 5 || lifetimeValue >= 100000) {
-              s = {
-                bg: "bg-kpi-amber/5 backdrop-blur-md",
-                border: "border-kpi-amber/30",
-                text: "text-kpi-amber",
-                dot: "bg-kpi-amber",
-                glow: "shadow-[0_0_24px_0_hsl(var(--kpi-amber)/0.08)]",
-                accent: "text-kpi-amber",
-              } // VIP
-            } else if (orderCount > 0 || lifetimeValue > 0) {
-              s = {
-                bg: "bg-kpi-blue/5 backdrop-blur-md",
-                border: "border-kpi-blue/30",
-                text: "text-kpi-blue",
-                dot: "bg-kpi-blue",
-                glow: "hover:shadow-[0_0_20px_0_hsl(var(--kpi-blue)/0.08)]",
-                accent: "text-kpi-blue",
-              } // Standard active
-            }
+            const isVip = orderCount >= 5 || lifetimeValue >= 100000
+            const isActive = orderCount > 0 || lifetimeValue > 0
+            const accent = isVip ? "amber" : isActive ? "blue" : undefined
 
             return (
-              <div
+              <GlassCard
                 key={c.id}
-                className={`group relative flex flex-col justify-between rounded-2xl border ${s.border} ${s.bg} ${s.glow} transition-all duration-200 hover:scale-[1.01] hover:brightness-105 overflow-hidden`}
+                accent={accent}
+                accentStripe={!!accent}
+                interactive
+                padding="none"
+                className="flex flex-col justify-between"
               >
-                {/* Left accent bar */}
-                <div className={`absolute left-0 inset-y-0 w-1 ${s.dot} rounded-l-2xl`} />
-
-                {/* Shimmer on hover */}
-                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
                 <div className="p-5 pl-6 space-y-4">
                   {/* Top info and badge row */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`flex items-center justify-center w-10 h-10 rounded-full border ${s.border} bg-background/50 ${s.accent} shrink-0`}
+                        className={`flex items-center justify-center w-10 h-10 rounded-full border ${
+                          isVip
+                            ? "border-kpi-amber/30 text-kpi-amber bg-kpi-amber/10"
+                            : isActive
+                            ? "border-kpi-blue/30 text-kpi-blue bg-kpi-blue/10"
+                            : "border-border/40 text-muted-foreground bg-background/50"
+                        } shrink-0`}
                       >
                         <Users className="w-5 h-5" />
                       </div>
@@ -353,31 +337,19 @@ export default function CustomersPage() {
 
                   {/* History Snapshot Badges */}
                   <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold border ${s.border} ${s.text} bg-background/60`}
-                    >
-                      <span>
-                        {orderCount} {orderCount === 1 ? "Orden" : "Órdenes"}
-                      </span>
-                    </span>
+                    <Badge variant="outline" size="sm">
+                      {orderCount} {orderCount === 1 ? "Orden" : "Órdenes"}
+                    </Badge>
 
-                    <span
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold border border-kpi-green/30 text-kpi-green bg-kpi-green/5"
-                    >
+                    <Badge variant="success" size="sm" className="gap-1">
                       <DollarSign className="w-3 h-3" />
-                      <span>
-                        Total: $
-                        {lifetimeValue.toLocaleString("es-AR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
-                    </span>
+                      <span>Total: {formatPrice(lifetimeValue)}</span>
+                    </Badge>
 
                     {(orderCount >= 5 || lifetimeValue >= 100000) && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold text-kpi-amber bg-kpi-amber/10 border border-kpi-amber/30 animate-pulse">
+                      <Badge variant="warning" size="sm" className="animate-pulse">
                         ★ VIP
-                      </span>
+                      </Badge>
                     )}
                   </div>
 
@@ -440,7 +412,7 @@ export default function CustomersPage() {
                     </Button>
                   </div>
                 </div>
-              </div>
+              </GlassCard>
             )
           })}
         </div>

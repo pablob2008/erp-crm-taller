@@ -6,6 +6,15 @@ import { UnbilledWidget } from "@/components/dashboard/UnbilledWidget"
 import { FiscalInvoicesWidget } from "@/components/dashboard/FiscalInvoicesWidget"
 import { PendingDebtWidget } from "@/components/dashboard/PendingDebtWidget"
 import { PrintableInvoice, type PrintFormat } from "@/components/pos/print/PrintableInvoice"
+import { PageHeader } from "@/components/ui/page-header"
+import { KpiMetricCard } from "@/components/ui/kpi-metric-card"
+import { GlassCard } from "@/components/ui/glass-card"
+import { PriceDisplay } from "@/components/ui/price-display"
+import { PaymentMethodBadge } from "@/components/ui/payment-method-badge"
+import { SegmentedControl } from "@/components/ui/segmented-control"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   fetchDashboardMetrics,
   getPresetRange,
@@ -19,12 +28,13 @@ import {
 } from "@/lib/services/arca"
 import { fetchSaleForPrint, type SaleForPrint } from "@/lib/services/pos"
 import { getBranchInfo, type BranchInfo } from "@/lib/services/branches"
+import { formatDateTime } from "@/lib/formatters"
+import { translateCashCategory } from "@/lib/constants/payment-methods"
 import {
   Wallet,
   ArrowUpRight,
   ArrowDownRight,
   Receipt,
-  CreditCard,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
@@ -35,7 +45,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-// ─── Types & Constants ────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type TabKey = "movements" | "sales" | "fiscal" | "debts"
 type FiscalSubTab = "unbilled" | "invoices"
@@ -51,29 +61,6 @@ type Movement = {
 }
 
 const PAGE_SIZE = 50
-
-const CATEGORY_LABELS: Record<string, string> = {
-  work_order_payment: "Pago de orden",
-  work_order_advance: "Adelanto / Seña",
-  manual_income: "Ingreso manual",
-  purchase_payment: "Compra de repuestos",
-  general_expense: "Gasto general",
-  manual_expense: "Gasto manual",
-  sale: "Venta directa",
-  refund: "Reintegro / Devolución",
-}
-
-const METHOD_LABELS: Record<string, string> = {
-  cash: "Efectivo",
-  transfer: "Transferencia",
-  card: "Tarjeta",
-  qr: "QR / Billetera",
-}
-
-const translateCategory = (cat: string) =>
-  CATEGORY_LABELS[cat] ?? cat.replace(/_/g, " ")
-
-const translateMethod = (method: string) => METHOD_LABELS[method] ?? method
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -251,7 +238,6 @@ export default function FinancePage() {
             ? `CAE simulado: ${res.cae} (modo homologación)`
             : `CAE otorgado por AFIP: ${res.cae}`,
         })
-        // Reload financial metrics & fiscal invoices list
         await loadFinancialData()
       } else {
         toast({
@@ -279,183 +265,105 @@ export default function FinancePage() {
   const pendingDebtCount = metrics?.pendingDebt.length ?? 0
 
   return (
-    <div className="relative space-y-6">
-      {/* Ambient background glows */}
-      <div className="pointer-events-none absolute -top-10 -left-10 w-80 h-80 rounded-full bg-kpi-blue/6 blur-3xl -z-10" />
-      <div className="pointer-events-none absolute top-40 right-0 w-64 h-64 rounded-full bg-kpi-green/5 blur-3xl -z-10" />
+    <div className="flex flex-col gap-6">
+      {/* Universal Page Header */}
+      <PageHeader
+        title="Caja, Comprobantes y Facturación"
+        subtitle="Gestión integral de ingresos/egresos, comprobantes de venta, facturas ARCA y cuentas por cobrar"
+        actions={
+          <div className="flex items-center gap-2.5">
+            <GlobalDateFilter value={dateRange} onChange={setDateRange} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                loadFinancialData()
+                loadMovements()
+              }}
+              disabled={loading || movementsLoading}
+              className="p-2 rounded-xl border-border/40 bg-background/50 backdrop-blur-md shadow-sm"
+              title="Actualizar datos financieros"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading || movementsLoading ? "animate-spin" : ""}`}
+              />
+            </Button>
+          </div>
+        }
+      />
 
-      {/* Header with Title and Global Date Filter */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Caja, Comprobantes y Facturación
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Gestión integral de ingresos/egresos, comprobantes de venta, facturas ARCA y cuentas por cobrar
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <GlobalDateFilter value={dateRange} onChange={setDateRange} />
-          <button
-            type="button"
-            onClick={() => {
-              loadFinancialData()
-              loadMovements()
-            }}
-            disabled={loading || movementsLoading}
-            className="rounded-xl border border-border/40 bg-background/50 p-2 text-muted-foreground backdrop-blur-md hover:bg-accent hover:text-foreground transition-all shadow-sm disabled:opacity-50"
-            title="Actualizar datos"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${loading || movementsLoading ? "animate-spin" : ""}`}
-            />
-          </button>
-        </div>
-      </div>
-
-      {/* Period Summary KPI Cards */}
+      {/* Period Summary KPI Cards — KpiMetricCard estandarizadas */}
       <div className="grid gap-4 md:grid-cols-3">
-        {/* Balance Card */}
-        <div className="group relative rounded-2xl p-5 overflow-hidden border border-kpi-blue/30 bg-kpi-blue/10 shadow-[0_0_24px_0_hsl(var(--kpi-blue)/0.12)] transition-all duration-200 hover:scale-[1.01] hover:brightness-105">
-          <div className="absolute left-0 inset-y-0 w-1 bg-kpi-blue rounded-l-2xl" />
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative flex items-center justify-between mb-3 pl-2">
-            <h3 className="text-xs font-semibold text-kpi-blue uppercase tracking-wider">
-              Balance del Período
-            </h3>
-            <div className="p-2 rounded-full bg-kpi-blue/15 text-kpi-blue border border-kpi-blue/30">
-              <Wallet className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="relative pl-2">
-            <span className="text-3xl font-bold text-foreground">
-              ${balance.toLocaleString("es-AR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </span>
-          </div>
-        </div>
+        <KpiMetricCard
+          title="Balance del Período"
+          value={balance}
+          isCurrency
+          variant="blue"
+          icon={<Wallet className="w-5 h-5" />}
+          hint="Ingresos menos egresos registrados en el período"
+        />
 
-        {/* Income Card */}
-        <div className="group relative rounded-2xl p-5 overflow-hidden border border-kpi-green/30 bg-kpi-green/10 shadow-[0_0_24px_0_hsl(var(--kpi-green)/0.12)] transition-all duration-200 hover:scale-[1.01] hover:brightness-105">
-          <div className="absolute left-0 inset-y-0 w-1 bg-kpi-green rounded-l-2xl" />
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative flex items-center justify-between mb-3 pl-2">
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-kpi-green animate-pulse" />
-              <h3 className="text-xs font-semibold text-kpi-green uppercase tracking-wider">
-                Ingresos Totales
-              </h3>
-            </div>
-            <div className="p-2 rounded-full bg-kpi-green/15 text-kpi-green border border-kpi-green/30">
-              <ArrowUpRight className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="relative pl-2">
-            <span className="text-3xl font-bold text-kpi-green">
-              ${periodIncome.toLocaleString("es-AR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </span>
-          </div>
-        </div>
+        <KpiMetricCard
+          title="Ingresos Totales"
+          value={periodIncome}
+          isCurrency
+          variant="green"
+          pulse
+          icon={<ArrowUpRight className="w-5 h-5" />}
+          hint="Total de dinero ingresado por cobros de órdenes y ventas de mostrador"
+        />
 
-        {/* Expenses Card */}
-        <div className="group relative rounded-2xl p-5 overflow-hidden border border-kpi-red/30 bg-kpi-red/10 shadow-[0_0_24px_0_hsl(var(--kpi-red)/0.12)] transition-all duration-200 hover:scale-[1.01] hover:brightness-105">
-          <div className="absolute left-0 inset-y-0 w-1 bg-kpi-red rounded-l-2xl" />
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative flex items-center justify-between mb-3 pl-2">
-            <h3 className="text-xs font-semibold text-kpi-red uppercase tracking-wider">
-              Egresos Totales
-            </h3>
-            <div className="p-2 rounded-full bg-kpi-red/15 text-kpi-red border border-kpi-red/30">
-              <ArrowDownRight className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="relative pl-2">
-            <span className="text-3xl font-bold text-kpi-red">
-              ${periodExpenses.toLocaleString("es-AR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </span>
-          </div>
-        </div>
+        <KpiMetricCard
+          title="Egresos Totales"
+          value={periodExpenses}
+          isCurrency
+          variant="red"
+          icon={<ArrowDownRight className="w-5 h-5" />}
+          hint="Total de dinero egresado por compras a proveedores y gastos manuales"
+        />
       </div>
 
       {/* Styled Tabs Navigation Bar */}
-      <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-background/50 backdrop-blur-md p-1.5 border border-border/40 shadow-sm">
-        <button
-          type="button"
-          onClick={() => setActiveTab("movements")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
-            activeTab === "movements"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
-          }`}
-        >
-          <Landmark className="h-4 w-4" />
-          <span>Movimientos de Caja</span>
-          <span className="ml-1 rounded-full bg-background/30 px-2 py-0.5 text-[10px]">
-            {totalMovementsCount}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("sales")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
-            activeTab === "sales"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
-          }`}
-        >
-          <Receipt className="h-4 w-4" />
-          <span>Comprobantes de Venta</span>
-          <span className="ml-1 rounded-full bg-background/30 px-2 py-0.5 text-[10px]">
-            {metrics?.salesHistory.length ?? 0}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("fiscal")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
-            activeTab === "fiscal"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
-          }`}
-        >
-          <FileText className="h-4 w-4" />
-          <span>Facturación ARCA</span>
-          {unbilledCount > 0 && (
-            <span className="ml-1 rounded-full bg-amber-500/20 text-amber-500 px-2 py-0.5 text-[10px] font-bold">
-              {unbilledCount} pend.
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("debts")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
-            activeTab === "debts"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
-          }`}
-        >
-          <AlertCircle className="h-4 w-4" />
-          <span>Cuentas por Cobrar</span>
-          {pendingDebtCount > 0 && (
-            <span className="ml-1 rounded-full bg-kpi-red/20 text-kpi-red px-2 py-0.5 text-[10px] font-bold">
-              {pendingDebtCount}
-            </span>
-          )}
-        </button>
-      </div>
+      <SegmentedControl<TabKey>
+        value={activeTab}
+        onChange={setActiveTab}
+        options={[
+          {
+            value: "movements",
+            label: "Movimientos de Caja",
+            icon: <Landmark className="h-4 w-4" />,
+            badge: <span className="opacity-70 text-[10px]">({totalMovementsCount})</span>,
+          },
+          {
+            value: "sales",
+            label: "Comprobantes de Venta",
+            icon: <Receipt className="h-4 w-4" />,
+            badge: <span className="opacity-70 text-[10px]">({metrics?.salesHistory.length ?? 0})</span>,
+          },
+          {
+            value: "fiscal",
+            label: "Facturación ARCA",
+            icon: <FileText className="h-4 w-4" />,
+            badge:
+              unbilledCount > 0 ? (
+                <Badge variant="warning" size="sm" className="font-bold">
+                  {unbilledCount} pend.
+                </Badge>
+              ) : undefined,
+          },
+          {
+            value: "debts",
+            label: "Cuentas por Cobrar",
+            icon: <AlertCircle className="h-4 w-4" />,
+            badge:
+              pendingDebtCount > 0 ? (
+                <Badge variant="destructive" size="sm" className="font-bold">
+                  {pendingDebtCount}
+                </Badge>
+              ) : undefined,
+          },
+        ]}
+      />
 
       {/* ── Tab 1: Movimientos de Caja ────────────────────────────────────────── */}
       {activeTab === "movements" && (
@@ -511,40 +419,33 @@ export default function FinancePage() {
               ))}
             </div>
           ) : movements.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-20 text-muted-foreground rounded-2xl border border-border/40 bg-background/40 backdrop-blur-md shadow-sm">
-              <Landmark className="w-12 h-12 opacity-15" />
-              <p className="font-medium text-base">
-                No hay movimientos registrados en el período seleccionado.
-              </p>
-            </div>
+            <EmptyState
+              icon={<Landmark className="w-8 h-8" />}
+              title="Sin movimientos en el período"
+              description="No hay ingresos ni egresos registrados en el rango de fechas seleccionado."
+            />
           ) : (
             <div className="grid gap-3">
               {movements.map((m) => {
                 const isIncome = m.type === "income"
-                const accentClass = isIncome ? "text-kpi-green" : "text-kpi-red"
-                const bgClass = isIncome ? "bg-kpi-green/10" : "bg-kpi-red/10"
-                const borderClass = isIncome
-                  ? "border-kpi-green/30"
-                  : "border-kpi-red/30"
-                const glowClass = isIncome
-                  ? "shadow-[0_0_20px_0_hsl(var(--kpi-green)/0.08)]"
-                  : "shadow-[0_0_20px_0_hsl(var(--kpi-red)/0.08)]"
-                const dotClass = isIncome ? "bg-kpi-green" : "bg-kpi-red"
                 const Icon = isIncome ? ArrowUpRight : ArrowDownRight
 
                 return (
-                  <div
+                  <GlassCard
                     key={m.id}
-                    className={`group relative flex items-center justify-between gap-4 p-4 pl-5 rounded-2xl border ${borderClass} ${bgClass} ${glowClass} transition-all duration-200 hover:scale-[1.01] hover:brightness-105 overflow-hidden`}
+                    accent={isIncome ? "green" : "red"}
+                    accentStripe
+                    interactive
+                    padding="none"
+                    className="flex items-center justify-between gap-4 p-4 pl-5"
                   >
-                    <div
-                      className={`absolute left-0 inset-y-0 w-1 ${dotClass} rounded-l-2xl`}
-                    />
-                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
                     <div className="flex items-center gap-4 min-w-0">
                       <div
-                        className={`flex items-center justify-center w-10 h-10 rounded-full border ${borderClass} ${bgClass} ${accentClass} shrink-0`}
+                        className={`flex items-center justify-center w-10 h-10 rounded-full border ${
+                          isIncome
+                            ? "border-kpi-green/30 bg-kpi-green/10 text-kpi-green"
+                            : "border-kpi-red/30 bg-kpi-red/10 text-kpi-red"
+                        } shrink-0`}
                       >
                         <Icon className="w-5 h-5" />
                       </div>
@@ -552,34 +453,23 @@ export default function FinancePage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2.5 flex-wrap">
                           <p className="font-bold text-sm text-foreground capitalize">
-                            {translateCategory(m.category)}
+                            {translateCashCategory(m.category)}
                           </p>
-                          <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${borderClass} ${bgClass} ${accentClass}`}
+                          <Badge
+                            variant={isIncome ? "success" : "destructive"}
+                            size="sm"
                           >
-                            {isIncome && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-kpi-green animate-pulse" />
-                            )}
                             {isIncome ? "Ingreso" : "Egreso"}
-                          </span>
+                          </Badge>
                         </div>
 
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                           <span className="flex items-center gap-1 font-medium text-foreground/70">
                             <Receipt className="w-3 h-3 opacity-70" />
-                            {new Date(m.created_at).toLocaleString("es-AR", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {formatDateTime(m.created_at)}
                           </span>
                           <span className="opacity-30">·</span>
-                          <span className="flex items-center gap-1">
-                            <CreditCard className="w-3 h-3 opacity-70" />
-                            {translateMethod(m.payment_method)}
-                          </span>
+                          <PaymentMethodBadge method={m.payment_method} variant="inline" />
                           {m.description && (
                             <>
                               <span className="opacity-30">·</span>
@@ -593,17 +483,14 @@ export default function FinancePage() {
                     </div>
 
                     <div className="shrink-0 text-right">
-                      <span
-                        className={`inline-block font-mono font-bold text-lg sm:text-xl ${accentClass}`}
-                      >
-                        {isIncome ? "+" : "-"}$
-                        {Number(m.net_amount).toLocaleString("es-AR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
+                      <PriceDisplay
+                        amount={m.net_amount}
+                        variant={isIncome ? "income" : "expense"}
+                        showSign
+                        size="xl"
+                      />
                     </div>
-                  </div>
+                  </GlassCard>
                 )
               })}
             </div>
@@ -647,6 +534,8 @@ export default function FinancePage() {
             loading={loading}
             onReprint={handleReprint}
             reprintingId={reprintingId}
+            onEmitInvoice={(saleId) => handleEmitInvoice("sale", saleId)}
+            emittingId={emittingId}
           />
         </div>
       )}
@@ -655,33 +544,30 @@ export default function FinancePage() {
       {activeTab === "fiscal" && (
         <div className="space-y-4">
           {/* Sub-selector: Pendientes vs Emitidas */}
-          <div className="flex items-center gap-1 rounded-xl bg-background/60 p-1 border border-border/40 w-fit">
-            <button
-              type="button"
-              onClick={() => setFiscalSubTab("unbilled")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                fiscalSubTab === "unbilled"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              <span>Pendientes de Facturar ({unbilledCount})</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setFiscalSubTab("invoices")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                fiscalSubTab === "invoices"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Facturas Emitidas ({fiscalInvoices.length})</span>
-            </button>
-          </div>
+          <SegmentedControl<FiscalSubTab>
+            value={fiscalSubTab}
+            onChange={setFiscalSubTab}
+            options={[
+              {
+                value: "unbilled",
+                label: "Pendientes de Facturar",
+                icon: <FileText className="h-3.5 w-3.5" />,
+                badge:
+                  unbilledCount > 0 ? (
+                    <Badge variant="warning" size="sm" className="font-bold">
+                      {unbilledCount}
+                    </Badge>
+                  ) : undefined,
+                accent: "amber",
+              },
+              {
+                value: "invoices",
+                label: `Facturas Emitidas (${fiscalInvoices.length})`,
+                icon: <ShieldCheck className="h-3.5 w-3.5" />,
+                accent: "green",
+              },
+            ]}
+          />
 
           {fiscalSubTab === "unbilled" ? (
             <UnbilledWidget

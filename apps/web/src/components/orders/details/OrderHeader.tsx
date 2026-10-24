@@ -20,6 +20,9 @@ import {
 } from "@/components/ui/dialog"
 import { ChevronDown, ArrowLeft, Pencil, Trash2, Share2, MessageCircle, Printer } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { getOrderStatusConfig } from "@/lib/constants/order-status"
+import { formatPrice } from "@/lib/formatters"
+import { cn } from "@/lib/utils"
 
 // ─── Task 3.1: WhatsApp utility functions ─────────────────────────────────────
 export function buildWhatsAppUrl(phone: string, text?: string): string {
@@ -30,30 +33,16 @@ export function buildWhatsAppUrl(phone: string, text?: string): string {
 
 export function buildOrderSummaryText(order: WorkOrderComposite): string {
   const customerName = `${order.customers?.first_name ?? ''} ${order.customers?.last_name ?? ''}`.trim();
-  const balance = (order.balance ?? 0).toFixed(2);
-  const status = translateStatus(order.status);
+  const balance = formatPrice(order.balance ?? 0);
+  const status = getOrderStatusConfig(order.status).label;
   return (
     `📋 *Orden #${order.order_number}*\n` +
     `👤 Cliente: ${customerName}\n` +
     `📱 Dispositivo: ${order.device_brand} ${order.device_model}\n` +
     `🔧 Problema: ${order.reported_problem}\n` +
     `📌 Estado: ${status}\n` +
-    `💰 Saldo pendiente: $${balance}`
+    `💰 Saldo pendiente: ${balance}`
   );
-}
-
-// ─── Status translation helper ────────────────────────────────────────────────
-const translateStatus = (status: string) => {
-  const map: Record<string, string> = {
-    quotation: 'Cotización',
-    received: 'Recibido',
-    waiting_client: 'Esperando Cliente',
-    waiting_parts: 'Esperando Repuesto',
-    ready_for_pickup: 'Listo',
-    cancelled: 'Cancelado',
-    delivered: 'Entregado'
-  }
-  return map[status] || status
 }
 
 // ─── Task 3.2: EditOrderDialog ────────────────────────────────────────────────
@@ -278,15 +267,7 @@ export function OrderHeader({ order, onUpdateStatus, onEditOrder, onDeleteOrder 
     window.print();
   }
 
-  const statusStyle = {
-    received:         { bg: 'bg-kpi-blue/15',   border: 'border-kpi-blue/30',  text: 'text-kpi-blue',   dot: 'bg-kpi-blue',   glow: 'shadow-[0_0_20px_0_hsl(var(--kpi-blue)/0.15)]',   pulse: true  },
-    waiting_client:   { bg: 'bg-kpi-amber/15',  border: 'border-kpi-amber/30', text: 'text-kpi-amber',  dot: 'bg-kpi-amber',  glow: 'shadow-[0_0_20px_0_hsl(var(--kpi-amber)/0.15)]',  pulse: true  },
-    waiting_parts:    { bg: 'bg-kpi-red/15',    border: 'border-kpi-red/30',   text: 'text-kpi-red',    dot: 'bg-kpi-red',    glow: 'shadow-[0_0_20px_0_hsl(var(--kpi-red)/0.15)]',    pulse: false },
-    ready_for_pickup: { bg: 'bg-kpi-green/15',  border: 'border-kpi-green/30', text: 'text-kpi-green',  dot: 'bg-kpi-green',  glow: 'shadow-[0_0_20px_0_hsl(var(--kpi-green)/0.15)]',  pulse: true  },
-    quotation:        { bg: 'bg-kpi-amber/15',  border: 'border-kpi-amber/30', text: 'text-kpi-amber',  dot: 'bg-kpi-amber',  glow: 'shadow-[0_0_20px_0_hsl(var(--kpi-amber)/0.15)]',  pulse: false },
-    delivered:        { bg: 'bg-muted/50',       border: 'border-border/40',    text: 'text-muted-foreground', dot: 'bg-muted-foreground', glow: '',                             pulse: false },
-    cancelled:        { bg: 'bg-kpi-red/15',    border: 'border-kpi-red/30',   text: 'text-kpi-red',    dot: 'bg-kpi-red',    glow: 'shadow-[0_0_20px_0_hsl(var(--kpi-red)/0.15)]',    pulse: false },
-  }[order.status] ?? { bg: 'bg-muted/40', border: 'border-border/40', text: 'text-muted-foreground', dot: 'bg-muted-foreground', glow: '', pulse: false }
+  const currentConfig = getOrderStatusConfig(order.status)
 
   return (
     <>
@@ -360,23 +341,33 @@ export function OrderHeader({ order, onUpdateStatus, onEditOrder, onDeleteOrder 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button 
-                  className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border transition-all duration-200 hover:brightness-110 focus-visible:outline-none ${statusStyle.bg} ${statusStyle.border} ${statusStyle.text} ${statusStyle.glow}`}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border transition-all duration-200 hover:brightness-110 focus-visible:outline-none",
+                    currentConfig.bg,
+                    currentConfig.border,
+                    currentConfig.text,
+                    currentConfig.glow
+                  )}
                 >
-                  {statusStyle.pulse && <span className={`w-2 h-2 rounded-full ${statusStyle.dot} animate-pulse`} />}
-                  <span>{translateStatus(order.status)}</span>
+                  {currentConfig.pulse && <span className={cn("w-2 h-2 rounded-full animate-pulse", currentConfig.dot)} />}
+                  <span>{currentConfig.label}</span>
                   <ChevronDown className="h-3.5 w-3.5 opacity-80" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-xl border border-border/40 shadow-lg backdrop-blur-md bg-background/80">
-                {statuses.map(s => (
-                  <DropdownMenuItem 
-                    key={s} 
-                    onClick={() => onUpdateStatus(s)}
-                    className={`cursor-pointer rounded-lg text-xs font-medium ${order.status === s ? 'bg-kpi-blue/15 text-kpi-blue font-bold' : ''}`}
-                  >
-                    {translateStatus(s)}
-                  </DropdownMenuItem>
-                ))}
+                {statuses.map(s => {
+                  const sCfg = getOrderStatusConfig(s)
+                  return (
+                    <DropdownMenuItem 
+                      key={s} 
+                      onClick={() => onUpdateStatus(s)}
+                      className={`cursor-pointer rounded-lg text-xs font-medium ${order.status === s ? 'bg-primary/10 text-primary font-bold' : ''}`}
+                    >
+                      <span className={cn("w-1.5 h-1.5 rounded-full mr-2", sCfg.dot)} />
+                      {sCfg.label}
+                    </DropdownMenuItem>
+                  )
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

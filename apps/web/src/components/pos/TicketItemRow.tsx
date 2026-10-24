@@ -1,5 +1,7 @@
 import { Minus, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PriceDisplay } from "@/components/ui/price-display"
+import { formatPrice } from "@/lib/formatters"
 import type { TicketItem } from "@/lib/services/pos"
 
 interface TicketItemRowProps {
@@ -20,7 +22,7 @@ export function TicketItemRow({ item, onIncrement, onDecrement, onRemove }: Tick
           {item.description}
         </p>
         <p className="text-xs text-muted-foreground">
-          ${Number(item.unitPrice).toLocaleString("es-AR")} c/u
+          {formatPrice(Number(item.unitPrice))} c/u
         </p>
       </div>
 
@@ -48,9 +50,9 @@ export function TicketItemRow({ item, onIncrement, onDecrement, onRemove }: Tick
       </div>
 
       {/* Line total */}
-      <span className="text-sm font-bold text-foreground tabular-nums w-20 text-right shrink-0">
-        ${lineTotal.toLocaleString("es-AR")}
-      </span>
+      <div className="w-20 text-right shrink-0">
+        <PriceDisplay amount={lineTotal} size="default" />
+      </div>
 
       {/* Remove */}
       <Button

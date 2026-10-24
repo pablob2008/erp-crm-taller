@@ -20,7 +20,8 @@
     --accent-foreground: 240 5.9% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: transparent;
+    --theme-accent: 217 91% 60%;
+    --border: var(--theme-accent);
     --input: 240 5.9% 90%;
     --ring: transparent;
     --radius: 1rem;
@@ -51,7 +52,8 @@
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: transparent;
+    --theme-accent: 217 91% 65%;
+    --border: var(--theme-accent);
     --input: 240 3.7% 15.9%;
     --ring: transparent;
     --neu-light: #272b3d;
@@ -62,6 +64,42 @@
     --kpi-green: 142 71% 50%;
     --kpi-amber: 38 92% 55%;
     --kpi-red: 0 84% 65%;
+  }
+
+  /* ── Accent Theme Presets ──────────────────────────────────────────────── */
+  :root[data-accent="blue"], [data-accent="blue"] {
+    --theme-accent: 217 91% 60%;
+  }
+  .dark[data-accent="blue"] {
+    --theme-accent: 217 91% 65%;
+  }
+
+  :root[data-accent="cyan"], [data-accent="cyan"] {
+    --theme-accent: 199 89% 48%;
+  }
+  .dark[data-accent="cyan"] {
+    --theme-accent: 199 89% 55%;
+  }
+
+  :root[data-accent="green"], [data-accent="green"] {
+    --theme-accent: 142 71% 45%;
+  }
+  .dark[data-accent="green"] {
+    --theme-accent: 142 71% 50%;
+  }
+
+  :root[data-accent="purple"], [data-accent="purple"] {
+    --theme-accent: 270 75% 60%;
+  }
+  .dark[data-accent="purple"] {
+    --theme-accent: 270 75% 65%;
+  }
+
+  :root[data-accent="amber"], [data-accent="amber"] {
+    --theme-accent: 38 92% 50%;
+  }
+  .dark[data-accent="amber"] {
+    --theme-accent: 38 92% 55%;
   }
 }
 

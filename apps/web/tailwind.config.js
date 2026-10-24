@@ -55,6 +55,7 @@ module.exports = {
         "kpi-green": "hsl(var(--kpi-green) / <alpha-value>)",
         "kpi-amber": "hsl(var(--kpi-amber) / <alpha-value>)",
         "kpi-red": "hsl(var(--kpi-red) / <alpha-value>)",
+        "theme-accent": "hsl(var(--theme-accent) / <alpha-value>)",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -64,6 +65,7 @@ module.exports = {
       boxShadow: {
         neu: "var(--shadow-neu)",
         "neu-inset": "var(--shadow-neu-inset)",
+        "theme-glow": "0 0 24px 0 hsl(var(--theme-accent) / 0.16)",
       },
       keyframes: {
         "accordion-down": {

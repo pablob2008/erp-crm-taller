@@ -7,6 +7,7 @@ import { DeliverOrderModal } from "@/components/pos/DeliverOrderModal"
 import { ExpenseModal } from "@/components/pos/ExpenseModal"
 import { ManualSaleModal } from "@/components/pos/ManualSaleModal"
 import { PrintFormatToggle } from "@/components/pos/PrintFormatToggle"
+import { PageHeader } from "@/components/ui/page-header"
 import { PrintableInvoice, type PrintFormat } from "@/components/pos/print/PrintableInvoice"
 import type { TicketItem, TicketState, OrderSearchResult, SaleForPrint } from "@/lib/services/pos"
 import { checkoutSale, fetchSaleForPrint } from "@/lib/services/pos"
@@ -194,10 +195,16 @@ export default function POSPage() {
 
   const handleDeliverOrderConfirm = useCallback(
     (order: OrderSearchResult) => {
+      const device = [order.device_brand, order.device_model].filter(Boolean).join(" ")
+      const problem = order.reported_problem ? ` — ${order.reported_problem}` : ""
+      const desc = device
+        ? `Servicio Técnico #${order.order_number}: Reparación ${device}${problem}`
+        : `Servicio Técnico #${order.order_number} — ${order.customer_name}`
+
       dispatch({
         type: "ADD_ITEM",
         payload: {
-          description: `Saldo Orden #${order.order_number} — ${order.customer_name}`,
+          description: desc,
           quantity: 1,
           unitPrice: order.balance,
         },
@@ -305,23 +312,17 @@ export default function POSPage() {
   return (
     <div className="relative space-y-4">
       <div className="no-print contents">
-        {/* Ambient glow */}
-        <div className="pointer-events-none absolute -top-10 -left-10 w-96 h-96 rounded-full bg-primary/4 blur-3xl -z-10" />
-
-        {/* Page header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">Punto de Venta</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Escaneá, buscá e ingresá artículos al ticket.
-            </p>
-          </div>
-          {/* Print format toggle */}
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-xs text-muted-foreground">Formato de impresión</span>
-            <PrintFormatToggle value={printFormat} onChange={setPrintFormat} />
-          </div>
-        </div>
+        {/* Universal Page header */}
+        <PageHeader
+          title="Punto de Venta"
+          subtitle="Escaneá, buscá e ingresá artículos al ticket."
+          actions={
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-xs text-muted-foreground font-medium">Formato de impresión</span>
+              <PrintFormatToggle value={printFormat} onChange={setPrintFormat} />
+            </div>
+          }
+        />
 
         {/* Split-screen grid — stacks on mobile, side-by-side on lg+ */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">

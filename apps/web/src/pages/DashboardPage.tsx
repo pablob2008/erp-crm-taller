@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from "react"
 import { useSupabase } from "@/context/SupabaseProvider"
 import { Wrench, CheckCircle, DollarSign, AlertTriangle, RefreshCw } from "lucide-react"
-import { KpiCard } from "@/components/dashboard/KpiCard"
+import { PageHeader } from "@/components/ui/page-header"
+import { KpiMetricCard } from "@/components/ui/kpi-metric-card"
+import { Button } from "@/components/ui/button"
 import { PipelineWidget } from "@/components/dashboard/PipelineWidget"
 import { RecentOrdersWidget } from "@/components/dashboard/RecentOrdersWidget"
 import { ActivityFeedWidget } from "@/components/dashboard/ActivityFeedWidget"
@@ -37,30 +39,23 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Panel Operativo del Taller
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Estado de reparaciones en tiempo real, equipos listos y alertas operativas
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            type="button"
+      {/* Universal Page Header */}
+      <PageHeader
+        title="Panel Operativo del Taller"
+        subtitle="Estado de reparaciones en tiempo real, equipos listos y alertas operativas"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
             onClick={loadDashboard}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl border border-border/40 bg-background/50 px-3 py-2 text-xs font-semibold text-muted-foreground backdrop-blur-md hover:bg-accent hover:text-foreground transition-all shadow-sm disabled:opacity-50"
-            title="Actualizar datos del taller"
+            className="gap-2 rounded-xl border-border/40 bg-background/50 backdrop-blur-md shadow-sm"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             <span>Actualizar</span>
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
       {/* Error banner */}
       {error && (
@@ -69,41 +64,40 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Hero Workshop KPIs */}
+      {/* Hero Workshop KPIs con KpiMetricCard estandarizada */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="Taller Activo"
+        <KpiMetricCard
+          title="Taller Activo"
           value={data?.activeWorkshop ?? 0}
           icon={<Wrench className="h-5 w-5" />}
-          accent="kpi-blue"
+          variant="blue"
+          pulse
           loading={loading}
           hint="Órdenes de trabajo en curso (excluye entregadas y canceladas)"
         />
-        <KpiCard
-          label="Listos para Retiro"
+        <KpiMetricCard
+          title="Listos para Retiro"
           value={data?.readyForPickup ?? 0}
           icon={<CheckCircle className="h-5 w-5" />}
-          accent="kpi-green"
+          variant="green"
+          pulse
           loading={loading}
           hint="Equipos reparados listos para que el cliente retire"
         />
-        <KpiCard
-          label="Caja Neta de Hoy"
-          value={
-            data
-              ? `$${data.todaysCash.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-              : "$0.00"
-          }
+        <KpiMetricCard
+          title="Caja Neta de Hoy"
+          value={data?.todaysCash ?? 0}
+          isCurrency
           icon={<DollarSign className="h-5 w-5" />}
-          accent="kpi-amber"
+          variant="amber"
           loading={loading}
-          hint="Ingresos menos egresos registrados hoy en la caja chica"
+          hint="Ingresos menos egresos registrados hoy en la caja chica (en pesos sin centavos)"
         />
-        <KpiCard
-          label="Alertas de Stock"
+        <KpiMetricCard
+          title="Alertas de Stock"
           value={data?.stockAlerts ?? 0}
           icon={<AlertTriangle className="h-5 w-5" />}
-          accent="kpi-red"
+          variant="red"
           loading={loading}
           hint="Repuestos o productos en o por debajo del stock mínimo"
         />
@@ -119,7 +113,7 @@ export default function DashboardPage() {
           <RecentOrdersWidget orders={data?.recentOrders ?? []} loading={loading} />
         </div>
 
-        {/* Activity Feed + Quick Actions stacked in third column */}
+        {/* Activity Feed + Quick Actions */}
         <div className="flex flex-col gap-6">
           <ActivityFeedWidget activities={data?.recentActivity ?? []} loading={loading} />
           <QuickActionsWidget />

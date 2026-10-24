@@ -63,7 +63,7 @@ export interface TicketItem {
 
 export interface TicketState {
   items: TicketItem[];
-  paymentMethod: 'cash' | 'qr' | 'card';
+  paymentMethod: 'cash' | 'qr' | 'card' | 'transfer';
   /** Populated when the ticket originates from a Deliver Order fast action */
   workOrderId?: string;
 }
@@ -71,7 +71,7 @@ export interface TicketState {
 export interface CheckoutPayload {
   branchId: string;
   cashRegisterId?: string;
-  paymentMethod: 'cash' | 'qr' | 'card';
+  paymentMethod: 'cash' | 'qr' | 'card' | 'transfer';
   items: TicketItem[];
   subtotal: number;
   total: number;
@@ -95,6 +95,10 @@ export interface OrderSearchResult {
   balance: number;
   status: string;
   customer_name: string;
+  device_brand?: string;
+  device_model?: string;
+  reported_problem?: string;
+  estimated_cost?: number;
 }
 
 // ============================================================================
@@ -149,6 +153,10 @@ export async function searchOrderByNumber(
       order_number,
       balance,
       status,
+      device_brand,
+      device_model,
+      reported_problem,
+      estimated_cost,
       customers ( first_name, last_name )
     `)
     .eq('branch_id', branchId)
@@ -175,6 +183,10 @@ export async function searchOrderByNumber(
     customer_name: customer
       ? `${customer.first_name} ${customer.last_name}`
       : 'Cliente desconocido',
+    device_brand: (data as any).device_brand ?? '',
+    device_model: (data as any).device_model ?? '',
+    reported_problem: (data as any).reported_problem ?? '',
+    estimated_cost: Number((data as any).estimated_cost ?? 0),
   };
 }
 

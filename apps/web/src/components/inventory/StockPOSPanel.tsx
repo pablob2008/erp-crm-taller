@@ -105,23 +105,23 @@ export function StockPOSPanel() {
       {/* Search and Add Action */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="relative w-full">
-          <Search className="absolute left-4 top-3.5 h-6 w-6 text-muted-foreground pointer-events-none" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
           <input
             ref={searchInputRef}
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Escanear código de barras o buscar repuesto..."
-            className="flex h-14 w-full rounded-full bg-background px-4 py-2 text-lg shadow-neu-inset transition-shadow placeholder:text-muted-foreground focus-visible:outline-none pl-14"
+            className="flex h-12 w-full rounded-2xl bg-background/50 border border-border/40 shadow-sm backdrop-blur-md px-4 py-2 text-base transition-all placeholder:text-muted-foreground focus:bg-background focus:border-primary/40 focus-visible:outline-none pl-12"
             autoFocus
           />
         </div>
         <Button
           variant="default"
-          className="rounded-full h-14 px-8 gap-2 whitespace-nowrap text-lg"
+          className="rounded-xl h-12 px-6 gap-2 whitespace-nowrap font-semibold shadow-sm shrink-0"
           onClick={openNewModal}
         >
-          <Plus className="h-6 w-6" />
+          <Plus className="h-5 w-5" />
           <span>Nuevo Artículo</span>
         </Button>
       </div>
@@ -186,22 +186,22 @@ export function StockPOSPanel() {
                         <Button
                           variant="outline"
                           size="icon"
-                          className="h-10 w-10 rounded-full border-border/40 shadow-neu-inset shrink-0"
+                          className="h-9 w-9 rounded-xl border-border/40 bg-background/50 shadow-sm hover:bg-accent shrink-0"
                           onClick={() => handleStockChange(item, -1)}
                           disabled={item.quantity <= 0}
                         >
-                          <Minus className="h-5 w-5" />
+                          <Minus className="h-4 w-4" />
                         </Button>
-                        <span className="w-12 text-center text-xl font-bold tabular-nums">
+                        <span className="w-12 text-center text-lg font-bold tabular-nums">
                           {item.quantity}
                         </span>
                         <Button
                           variant="outline"
                           size="icon"
-                          className="h-10 w-10 rounded-full border-border/40 shadow-neu-inset shrink-0"
+                          className="h-9 w-9 rounded-xl border-border/40 bg-background/50 shadow-sm hover:bg-accent shrink-0"
                           onClick={() => handleStockChange(item, 1)}
                         >
-                          <Plus className="h-5 w-5" />
+                          <Plus className="h-4 w-4" />
                         </Button>
                       </div>
                     </td>

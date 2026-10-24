@@ -68,6 +68,7 @@ export interface SalesHistoryItem {
   cae?: string | null;
   invoice_type?: string | null;
   invoice_number?: string | null;
+  work_order_id?: string | null;
 }
 
 export interface UnbilledSaleItem {
@@ -320,6 +321,7 @@ export async function fetchDashboardMetrics(
         invoice_type,
         invoice_number,
         cae,
+        work_order_id,
         customers ( first_name, last_name ),
         sale_items ( id )
       `)
@@ -432,6 +434,7 @@ export async function fetchDashboardMetrics(
     cae: row.cae,
     invoice_type: row.invoice_type,
     invoice_number: row.invoice_number,
+    work_order_id: row.work_order_id,
   }))
 
   // KPI: Total revenue excludes voided sales

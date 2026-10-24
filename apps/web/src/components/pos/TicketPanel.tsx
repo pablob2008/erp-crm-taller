@@ -1,5 +1,8 @@
 import { ShoppingCart, Receipt } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { GlassCard } from "@/components/ui/glass-card"
+import { PriceDisplay } from "@/components/ui/price-display"
+import { formatPrice } from "@/lib/formatters"
 import { TicketItemRow } from "@/components/pos/TicketItemRow"
 import { PaymentMethodSelector } from "@/components/pos/PaymentMethodSelector"
 import type { TicketState } from "@/lib/services/pos"
@@ -29,11 +32,11 @@ export function TicketPanel({
 
   return (
     <div className="flex flex-col gap-4 lg:sticky lg:top-4">
-      {/* Ticket card */}
-      <div className="rounded-2xl border border-border/40 bg-background/40 backdrop-blur-md shadow-sm overflow-hidden">
+      {/* Ticket card con acento verde de cobro */}
+      <GlassCard accent="green" accentStripe padding="none">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30">
-          <Receipt className="h-4 w-4 text-primary" />
+          <Receipt className="h-4 w-4 text-kpi-green" />
           <h3 className="font-semibold text-sm">Ticket Actual</h3>
           <span className="ml-auto text-xs text-muted-foreground">
             {ticketState.items.length} ítem(s)
@@ -65,12 +68,10 @@ export function TicketPanel({
         {!isEmpty && (
           <div className="px-4 py-3 border-t border-border/30 flex items-center justify-between">
             <span className="text-sm text-muted-foreground font-medium">Subtotal</span>
-            <span className="text-xl font-bold text-foreground tabular-nums">
-              ${subtotal.toLocaleString("es-AR")}
-            </span>
+            <PriceDisplay amount={subtotal} size="xl" />
           </div>
         )}
-      </div>
+      </GlassCard>
 
       {/* Work order indicator */}
       {ticketState.workOrderId && (
@@ -81,7 +82,7 @@ export function TicketPanel({
       )}
 
       {/* Payment method selector */}
-      <div className="rounded-2xl border border-border/40 bg-background/40 backdrop-blur-md shadow-sm p-4 space-y-3">
+      <GlassCard padding="sm" className="space-y-3">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Método de Pago
         </p>
@@ -89,7 +90,7 @@ export function TicketPanel({
           value={ticketState.paymentMethod}
           onChange={onSetPaymentMethod}
         />
-      </div>
+      </GlassCard>
 
       {/* Checkout button */}
       <Button
@@ -100,7 +101,7 @@ export function TicketPanel({
       >
         {isCheckingOut
           ? "Procesando..."
-          : `Cobrar $${subtotal.toLocaleString("es-AR")}`}
+          : `Cobrar ${formatPrice(subtotal)}`}
       </Button>
     </div>
   )
