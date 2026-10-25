@@ -246,7 +246,7 @@ export function OrderHeader({ order, onUpdateStatus, onEditOrder, onDeleteOrder 
 
   const statuses = [
     'quotation', 'received', 'waiting_client', 
-    'waiting_parts', 'ready_for_pickup', 'cancelled', 'delivered'
+    'waiting_parts', 'ready_for_pickup', 'cancelled'
   ]
 
   const customerPhone = order.customers?.phone ?? null;

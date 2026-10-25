@@ -298,6 +298,8 @@ CREATE TABLE public.sales (
     cae_expires_at      DATE,
     afip_qr_data        TEXT,                     -- Base64 encoded payload for fiscal QR reprint
     arca_invoice_id     UUID REFERENCES public.arca_invoices(id) ON DELETE SET NULL, -- Link to centralized fiscal record
+    ticket_sequence     INT DEFAULT 0,
+    ticket_number       VARCHAR(50),
     created_by          UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -341,6 +343,30 @@ BEFORE INSERT ON public.work_orders
 FOR EACH ROW
 WHEN (NEW.order_number IS NULL OR NEW.order_number = '')
 EXECUTE FUNCTION public.fn_generate_work_order_number();
+
+
+-- A.2 Generación Atómica de Número de Ticket TKT-XXXXX por Sucursal
+CREATE OR REPLACE FUNCTION public.fn_generate_sale_ticket_number()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_next_seq INT;
+BEGIN
+    SELECT COALESCE(MAX(ticket_sequence), 0) + 1
+    INTO v_next_seq
+    FROM public.sales
+    WHERE branch_id = NEW.branch_id;
+
+    NEW.ticket_sequence := v_next_seq;
+    NEW.ticket_number := 'TKT-' || LPAD(v_next_seq::TEXT, 5, '0');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE TRIGGER trg_generate_sale_ticket_number
+BEFORE INSERT ON public.sales
+FOR EACH ROW
+WHEN (NEW.ticket_number IS NULL OR NEW.ticket_number = '')
+EXECUTE FUNCTION public.fn_generate_sale_ticket_number();
 
 
 -- B. Auditoría de Estados y Timestamp de Entrega de Órdenes

@@ -1,9 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useSupabase } from "@/context/SupabaseProvider"
 import { GlobalDateFilter } from "@/components/dashboard/GlobalDateFilter"
-import { SalesHistoryWidget } from "@/components/dashboard/SalesHistoryWidget"
-import { UnbilledWidget } from "@/components/dashboard/UnbilledWidget"
-import { FiscalInvoicesWidget } from "@/components/dashboard/FiscalInvoicesWidget"
+import { UnifiedVouchersWidget } from "@/components/dashboard/UnifiedVouchersWidget"
 import { PendingDebtWidget } from "@/components/dashboard/PendingDebtWidget"
 import { PrintableInvoice, type PrintFormat } from "@/components/pos/print/PrintableInvoice"
 import { PageHeader } from "@/components/ui/page-header"
@@ -21,11 +19,7 @@ import {
   type DateRange,
   type DashboardMetrics,
 } from "@/lib/services/dashboard"
-import {
-  emitInvoice,
-  fetchInvoicesByBranch,
-  type ArcaInvoice,
-} from "@/lib/services/arca"
+import { emitInvoice } from "@/lib/services/arca"
 import { fetchSaleForPrint, type SaleForPrint } from "@/lib/services/pos"
 import { getBranchInfo, type BranchInfo } from "@/lib/services/branches"
 import { formatDateTime } from "@/lib/formatters"
@@ -39,16 +33,13 @@ import {
   ChevronRight,
   RefreshCw,
   Landmark,
-  FileText,
   AlertCircle,
-  ShieldCheck,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type TabKey = "movements" | "sales" | "fiscal" | "debts"
-type FiscalSubTab = "unbilled" | "invoices"
+type TabKey = "movements" | "vouchers" | "debts"
 
 type Movement = {
   id: string
@@ -71,7 +62,6 @@ export default function FinancePage() {
 
   // ── Tab & Filter States ─────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabKey>("movements")
-  const [fiscalSubTab, setFiscalSubTab] = useState<FiscalSubTab>("unbilled")
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange("today"))
 
   // ── Data States ─────────────────────────────────────────────────────────────
@@ -81,7 +71,6 @@ export default function FinancePage() {
   const [movementsPage, setMovementsPage] = useState(0)
   const [periodIncome, setPeriodIncome] = useState(0)
   const [periodExpenses, setPeriodExpenses] = useState(0)
-  const [fiscalInvoices, setFiscalInvoices] = useState<ArcaInvoice[]>([])
 
   const [loading, setLoading] = useState(true)
   const [movementsLoading, setMovementsLoading] = useState(true)
@@ -101,17 +90,13 @@ export default function FinancePage() {
       .catch((err) => console.error("[Finance] Failed to fetch branch info:", err))
   }, [supabase, branchId])
 
-  // ── Load Financial Metrics, Sales & Fiscal Invoices ─────────────────────────
+  // ── Load Financial Metrics & Vouchers ───────────────────────────────────────
   const loadFinancialData = useCallback(async () => {
     if (!branchId) return
     setLoading(true)
     try {
-      const [dashMetrics, invResult] = await Promise.all([
-        fetchDashboardMetrics(supabase, branchId, dateRange),
-        fetchInvoicesByBranch(supabase, branchId, { resultado: "A", limit: 100 }),
-      ])
+      const dashMetrics = await fetchDashboardMetrics(supabase, branchId, dateRange)
       setMetrics(dashMetrics)
-      setFiscalInvoices(invResult.invoices)
     } catch (err) {
       console.error("[Finance] Error loading financial data:", err)
       toast({
@@ -217,7 +202,7 @@ export default function FinancePage() {
     }
   }
 
-  // ── Handlers: Direct ARCA Invoicing from Unbilled List ───────────────────────
+  // ── Handlers: Direct In-Place ARCA Invoicing ────────────────────────────────
   const handleEmitInvoice = async (
     targetType: "sale" | "work_order",
     targetId: string
@@ -261,7 +246,8 @@ export default function FinancePage() {
   const balance = periodIncome - periodExpenses
   const totalPages = Math.ceil(totalMovementsCount / PAGE_SIZE)
   const unbilledCount =
-    (metrics?.unbilledSales.length ?? 0) + (metrics?.unbilledOrders.length ?? 0)
+    (metrics?.salesHistory.filter((s) => !s.cae && s.status !== "voided").length ?? 0) +
+    (metrics?.unbilledOrders.length ?? 0)
   const pendingDebtCount = metrics?.pendingDebt.length ?? 0
 
   return (
@@ -269,7 +255,7 @@ export default function FinancePage() {
       {/* Universal Page Header */}
       <PageHeader
         title="Caja, Comprobantes y Facturación"
-        subtitle="Gestión integral de ingresos/egresos, comprobantes de venta, facturas ARCA y cuentas por cobrar"
+        subtitle="Arqueo de ingresos/egresos, comprobantes unificados de venta y taller, y facturación oficial ARCA"
         actions={
           <div className="flex items-center gap-2.5">
             <GlobalDateFilter value={dateRange} onChange={setDateRange} />
@@ -323,7 +309,7 @@ export default function FinancePage() {
         />
       </div>
 
-      {/* Styled Tabs Navigation Bar */}
+      {/* Styled Master Tabs Navigation Bar (3 Pestañas Claras) */}
       <SegmentedControl<TabKey>
         value={activeTab}
         onChange={setActiveTab}
@@ -335,15 +321,9 @@ export default function FinancePage() {
             badge: <span className="opacity-70 text-[10px]">({totalMovementsCount})</span>,
           },
           {
-            value: "sales",
-            label: "Comprobantes de Venta",
+            value: "vouchers",
+            label: "Comprobantes & Facturación ARCA",
             icon: <Receipt className="h-4 w-4" />,
-            badge: <span className="opacity-70 text-[10px]">({metrics?.salesHistory.length ?? 0})</span>,
-          },
-          {
-            value: "fiscal",
-            label: "Facturación ARCA",
-            icon: <FileText className="h-4 w-4" />,
             badge:
               unbilledCount > 0 ? (
                 <Badge variant="warning" size="sm" className="font-bold">
@@ -365,7 +345,7 @@ export default function FinancePage() {
         ]}
       />
 
-      {/* ── Tab 1: Movimientos de Caja ────────────────────────────────────────── */}
+      {/* ── Tab 1: Movimientos de Caja (Libro Diario & Arqueo) ─────────────────── */}
       {activeTab === "movements" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -526,69 +506,22 @@ export default function FinancePage() {
         </div>
       )}
 
-      {/* ── Tab 2: Comprobantes de Venta ──────────────────────────────────────── */}
-      {activeTab === "sales" && (
+      {/* ── Tab 2: Comprobantes & Facturación ARCA Unificados ──────────────────── */}
+      {activeTab === "vouchers" && (
         <div className="space-y-4">
-          <SalesHistoryWidget
+          <UnifiedVouchersWidget
             sales={metrics?.salesHistory ?? []}
+            unbilledOrders={metrics?.unbilledOrders ?? []}
             loading={loading}
-            onReprint={handleReprint}
+            onReprintSale={handleReprint}
             reprintingId={reprintingId}
-            onEmitInvoice={(saleId) => handleEmitInvoice("sale", saleId)}
+            onEmitInvoice={handleEmitInvoice}
             emittingId={emittingId}
           />
         </div>
       )}
 
-      {/* ── Tab 3: Facturación Electrónica ARCA ─────────────────────────────────── */}
-      {activeTab === "fiscal" && (
-        <div className="space-y-4">
-          {/* Sub-selector: Pendientes vs Emitidas */}
-          <SegmentedControl<FiscalSubTab>
-            value={fiscalSubTab}
-            onChange={setFiscalSubTab}
-            options={[
-              {
-                value: "unbilled",
-                label: "Pendientes de Facturar",
-                icon: <FileText className="h-3.5 w-3.5" />,
-                badge:
-                  unbilledCount > 0 ? (
-                    <Badge variant="warning" size="sm" className="font-bold">
-                      {unbilledCount}
-                    </Badge>
-                  ) : undefined,
-                accent: "amber",
-              },
-              {
-                value: "invoices",
-                label: `Facturas Emitidas (${fiscalInvoices.length})`,
-                icon: <ShieldCheck className="h-3.5 w-3.5" />,
-                accent: "green",
-              },
-            ]}
-          />
-
-          {fiscalSubTab === "unbilled" ? (
-            <UnbilledWidget
-              unbilledSales={metrics?.unbilledSales ?? []}
-              unbilledOrders={metrics?.unbilledOrders ?? []}
-              loading={loading}
-              onEmitInvoice={handleEmitInvoice}
-              emittingId={emittingId}
-            />
-          ) : (
-            <FiscalInvoicesWidget
-              invoices={fiscalInvoices}
-              loading={loading}
-              onReprint={handleReprint}
-              reprintingId={reprintingId}
-            />
-          )}
-        </div>
-      )}
-
-      {/* ── Tab 4: Cuentas por Cobrar (Deudas) ─────────────────────────────────── */}
+      {/* ── Tab 3: Cuentas por Cobrar (Deudores con Saldo) ──────────────────────── */}
       {activeTab === "debts" && (
         <div className="space-y-4">
           <PendingDebtWidget

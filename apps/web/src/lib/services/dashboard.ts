@@ -69,6 +69,7 @@ export interface SalesHistoryItem {
   invoice_type?: string | null;
   invoice_number?: string | null;
   work_order_id?: string | null;
+  ticket_number?: string | null;
 }
 
 export interface UnbilledSaleItem {
@@ -90,6 +91,8 @@ export interface UnbilledOrderItem {
   balance: number;
   status: string;
   customer_name?: string | null;
+  device_brand?: string | null;
+  device_model?: string | null;
 }
 
 export interface PendingDebtItem {
@@ -322,6 +325,7 @@ export async function fetchDashboardMetrics(
         invoice_number,
         cae,
         work_order_id,
+        ticket_number,
         customers ( first_name, last_name ),
         sale_items ( id )
       `)
@@ -375,9 +379,8 @@ export async function fetchDashboardMetrics(
       .not("arca_invoice_id", "is", null)
       .not("work_order_id", "is", null),
 
-    // 4b. All non-cancelled work orders in terminal/near-terminal states.
-    // We only show orders that are "ready" or "delivered" as "unbilled" — orders
-    // still in_progress, waiting_parts, etc. cannot be invoiced yet.
+    // 4b. Non-cancelled work orders in terminal states within the selected date range.
+    // Scoped by updated_at so historical orders from past months never pollute the current view.
     supabase
       .from("work_orders")
       .select(`
@@ -387,10 +390,14 @@ export async function fetchDashboardMetrics(
         estimated_cost,
         balance,
         status,
+        device_brand,
+        device_model,
         customers ( first_name, last_name )
       `)
       .eq("branch_id", branchId)
       .in("status", ["ready_for_pickup", "delivered"])
+      .gte("updated_at", dateRange.from)
+      .lte("updated_at", dateRange.to)
       .order("created_at", { ascending: false }),
 
     // 5. Pending debt work orders (stateful, unfiltered by date)
@@ -435,6 +442,7 @@ export async function fetchDashboardMetrics(
     invoice_type: row.invoice_type,
     invoice_number: row.invoice_number,
     work_order_id: row.work_order_id,
+    ticket_number: row.ticket_number || null,
   }))
 
   // KPI: Total revenue excludes voided sales
@@ -477,6 +485,8 @@ export async function fetchDashboardMetrics(
       balance: Number(row.balance ?? 0),
       status: row.status,
       customer_name: formatCustomerName(row.customers),
+      device_brand: row.device_brand || null,
+      device_model: row.device_model || null,
     }))
 
   const rawPendingDebt = (pendingDebtRes.data ?? []) as any[]
