@@ -1,9 +1,10 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { ModeToggle } from "@/components/mode-toggle"
 import { useSupabase } from "@/context/SupabaseProvider"
 import { SearchInput } from "@/components/ui/input"
 import { GlassIconButton } from "@/components/ui/glass-icon-button"
+import { PageLoader } from "@/components/ui/page-loader"
 import {
   LayoutDashboard,
   ClipboardList,
@@ -183,7 +184,9 @@ export default function DashboardLayout() {
 
         {/* Dashboard Body / Outlet */}
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-4">
-          <Outlet />
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
 
