@@ -5,14 +5,14 @@ import { cn } from "@/lib/utils"
 export type GlassAccent = "blue" | "green" | "amber" | "red" | "purple" | "muted"
 
 const glassCardVariants = cva(
-  "group relative rounded-2xl border border-border/40 bg-background/40 shadow-sm backdrop-blur-md transition-all overflow-hidden",
+  "group relative rounded-2xl border border-border/45 bg-background/50 shadow-sm backdrop-blur-md transition-all overflow-hidden",
   {
     variants: {
       variant: {
         default: "",
         subtle: "bg-background/25 border-border/30",
         interactive:
-          "cursor-pointer hover:bg-background/60 hover:border-primary/40 hover:shadow-md hover:scale-[1.01] hover:brightness-105 active:scale-[0.99]",
+          "cursor-pointer hover:bg-background/70 hover:border-primary/50 hover:shadow-md hover:scale-[1.01] hover:brightness-105 active:scale-[0.99]",
         glow: "",
       },
       padding: {
@@ -39,37 +39,37 @@ const accentStyles: Record<
   }
 > = {
   blue: {
-    border: "border-kpi-blue/30 hover:border-kpi-blue/50",
+    border: "border border-kpi-blue/40 hover:border-kpi-blue/60",
     bg: "bg-kpi-blue/10",
-    glow: "shadow-[0_0_24px_0_hsl(var(--kpi-blue)/0.12)]",
+    glow: "shadow-[0_0_24px_0_hsl(var(--kpi-blue)/0.15)]",
     line: "bg-kpi-blue",
   },
   green: {
-    border: "border-kpi-green/30 hover:border-kpi-green/50",
+    border: "border border-kpi-green/40 hover:border-kpi-green/60",
     bg: "bg-kpi-green/10",
-    glow: "shadow-[0_0_24px_0_hsl(var(--kpi-green)/0.12)]",
+    glow: "shadow-[0_0_24px_0_hsl(var(--kpi-green)/0.15)]",
     line: "bg-kpi-green",
   },
   amber: {
-    border: "border-kpi-amber/30 hover:border-kpi-amber/50",
+    border: "border border-kpi-amber/40 hover:border-kpi-amber/60",
     bg: "bg-kpi-amber/10",
-    glow: "shadow-[0_0_24px_0_hsl(var(--kpi-amber)/0.12)]",
+    glow: "shadow-[0_0_24px_0_hsl(var(--kpi-amber)/0.15)]",
     line: "bg-kpi-amber",
   },
   red: {
-    border: "border-kpi-red/30 hover:border-kpi-red/50",
+    border: "border border-kpi-red/40 hover:border-kpi-red/60",
     bg: "bg-kpi-red/10",
-    glow: "shadow-[0_0_24px_0_hsl(var(--kpi-red)/0.12)]",
+    glow: "shadow-[0_0_24px_0_hsl(var(--kpi-red)/0.15)]",
     line: "bg-kpi-red",
   },
   purple: {
-    border: "border-purple-500/30 hover:border-purple-500/50",
+    border: "border border-purple-500/40 hover:border-purple-500/60",
     bg: "bg-purple-500/10",
-    glow: "shadow-[0_0_24px_0_hsl(270_70%_60%/0.12)]",
+    glow: "shadow-[0_0_24px_0_hsl(270_70%_60%/0.15)]",
     line: "bg-purple-500",
   },
   muted: {
-    border: "border-border/40 hover:border-border/60",
+    border: "border border-border/45 hover:border-border/70",
     bg: "bg-muted/30",
     glow: "shadow-sm",
     line: "bg-muted-foreground",

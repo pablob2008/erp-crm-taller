@@ -62,6 +62,14 @@ module.exports = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      borderWidth: {
+        DEFAULT: "1.5px",
+        "0": "0",
+        "1": "1px",
+        "1.5": "1.5px",
+        "1.75": "1.75px",
+        "2": "2px",
+      },
       boxShadow: {
         neu: "var(--shadow-neu)",
         "neu-inset": "var(--shadow-neu-inset)",

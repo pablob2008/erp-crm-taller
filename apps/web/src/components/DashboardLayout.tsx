@@ -82,17 +82,14 @@ export default function DashboardLayout() {
         />
       )}
 
-      {/* Glass Sidebar con acento temático */}
+      {/* Glass Sidebar con acento temático y halo de luz */}
       <aside
-        className={`fixed inset-y-4 left-4 z-50 w-64 flex-col rounded-2xl border border-theme-accent/30 shadow-[0_8px_32px_0_hsl(var(--theme-accent)/0.10)] bg-background/85 backdrop-blur-xl py-3 transition-transform duration-300 lg:translate-x-0 lg:flex overflow-hidden ${
+        className={`fixed inset-y-4 left-4 z-50 w-64 flex-col rounded-2xl border border-theme-accent/40 shadow-[0_0_24px_0_hsl(var(--theme-accent)/0.16),0_8px_32px_0_hsl(var(--foreground)/0.06)] bg-background/90 backdrop-blur-xl py-3 transition-transform duration-300 lg:translate-x-0 lg:flex overflow-hidden ${
           isMobileMenuOpen ? "translate-x-0 flex" : "-translate-x-[150%] hidden"
         }`}
       >
-        {/* Stripe vertical izquierdo temático */}
-        <div className="absolute left-0 inset-y-0 w-1 rounded-l-2xl bg-theme-accent" />
-
         {/* Shimmer superior en el sidebar */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none" />
 
         <div className="lg:hidden absolute right-3 top-3 z-10">
           <GlassIconButton
@@ -103,9 +100,9 @@ export default function DashboardLayout() {
           />
         </div>
 
-        <div className="flex h-12 items-center px-4 lg:px-6 mb-2 pl-5">
+        <div className="flex h-12 items-center px-4 lg:px-6 mb-2">
           <Link to="/" className="flex items-center gap-2.5 font-bold tracking-tight text-foreground">
-            <div className="p-2 rounded-xl bg-theme-accent/15 text-theme-accent border border-theme-accent/30 shadow-[0_0_15px_0_hsl(var(--theme-accent)/0.2)]">
+            <div className="p-2 rounded-xl bg-theme-accent/15 text-theme-accent border border-theme-accent/40 shadow-[0_0_16px_0_hsl(var(--theme-accent)/0.25)]">
               <Package className="h-5 w-5" />
             </div>
             <span className="text-base font-bold">ERP Taller</span>
@@ -138,8 +135,8 @@ export default function DashboardLayout() {
 
       {/* Main Content Area — Full width on mobile & iPad portrait, left margin only on desktop (lg:ml-[288px]) */}
       <main className="flex flex-1 flex-col lg:ml-[288px] min-w-0 overflow-x-hidden">
-        {/* Sticky Glass Header con acento de borde */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-background/85 backdrop-blur-md px-4 lg:h-[60px] lg:px-8 border-b border-theme-accent/20 mb-2">
+        {/* Sticky Glass Header con acento de borde y halo de luz */}
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-background/90 backdrop-blur-md px-4 lg:h-[60px] lg:px-8 border-b border-theme-accent/35 shadow-[0_4px_24px_0_hsl(var(--theme-accent)/0.12)] mb-2">
           <GlassIconButton
             icon={<Menu className="h-5 w-5" />}
             onClick={() => setIsMobileMenuOpen(true)}
