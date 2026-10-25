@@ -520,11 +520,6 @@ CREATE OR REPLACE FUNCTION public.fn_sync_cash_movement_to_work_order()
 RETURNS TRIGGER AS $$
 DECLARE
     v_is_closed BOOLEAN;
-    INCOME_CATEGORIES CONSTANT TEXT[] := ARRAY[
-        'work_order_payment',
-        
-        'manual_income'
-    ];
 BEGIN
     -- Validar que la caja esté abierta solo para inserciones y actualizaciones
     IF TG_OP IN ('INSERT', 'UPDATE') THEN
@@ -833,6 +828,7 @@ CREATE INDEX IF NOT EXISTS idx_sales_branch_id ON public.sales(branch_id);
 CREATE INDEX IF NOT EXISTS idx_sales_branch_created ON public.sales(branch_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_sales_work_order_id ON public.sales(work_order_id);
 CREATE INDEX IF NOT EXISTS idx_sales_cash_movement_id ON public.sales(cash_movement_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sales_branch_ticket_number ON public.sales(branch_id, ticket_number) WHERE ticket_number IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON public.sale_items(sale_id);
 CREATE INDEX IF NOT EXISTS idx_sale_items_inventory_item_id ON public.sale_items(inventory_item_id);
 
