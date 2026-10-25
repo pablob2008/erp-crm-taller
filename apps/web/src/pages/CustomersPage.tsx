@@ -32,6 +32,7 @@ import { SearchInput } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
+import { CardSkeleton } from "@/components/ui/skeleton"
 import { formatPrice } from "@/lib/formatters"
 import {
   Dialog,
@@ -212,26 +213,11 @@ export default function CustomersPage() {
         }
       />
 
-      {/* Cards Grid */}
+      {/* Cards Grid con Shimmer Skeletons y animación de entrada */}
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-2xl p-5 bg-background/40 border border-border/40 animate-pulse backdrop-blur-md shadow-sm space-y-4"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-muted shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-32 rounded-full bg-muted" />
-                  <div className="h-3 w-20 rounded-full bg-muted" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="h-3 w-48 rounded-full bg-muted" />
-                <div className="h-3 w-36 rounded-full bg-muted" />
-              </div>
-            </div>
+            <CardSkeleton key={i} />
           ))}
         </div>
       ) : customers.length === 0 ? (
@@ -258,7 +244,7 @@ export default function CustomersPage() {
           }
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3 animate-in fade-in-50 slide-in-from-bottom-2 duration-300 ease-out">
           {customers.map((c) => {
             const orderCount = c.orderCount || 0
             const lifetimeValue = c.lifetimeValue || 0

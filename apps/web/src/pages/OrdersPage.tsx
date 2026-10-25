@@ -8,6 +8,7 @@ import { SearchInput } from "@/components/ui/input"
 import { OrderStatusBadge } from "@/components/ui/order-status-badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { GlassCard } from "@/components/ui/glass-card"
+import { CardSkeleton } from "@/components/ui/skeleton"
 import { getOrderStatusConfig } from "@/lib/constants/order-status"
 
 type WorkOrder = {
@@ -155,28 +156,11 @@ export default function OrdersPage() {
       {/* Status tabs */}
       <OrderStatusTabs activeTab={urlStatus} onChange={handleStatusChange} />
 
-      {/* Cards list */}
+      {/* Cards list con Shimmer Skeletons y animación de entrada suave */}
       {loading ? (
         <div className="grid gap-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-2xl p-4 bg-background/40 border border-border/40 animate-pulse backdrop-blur-md shadow-sm"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-1 self-stretch rounded-full bg-muted" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-32 rounded-full bg-muted" />
-                  <div className="h-3 w-48 rounded-full bg-muted" />
-                  <div className="h-3 w-36 rounded-full bg-muted" />
-                </div>
-                <div className="flex gap-2">
-                  <div className="h-9 w-9 rounded-full bg-muted" />
-                  <div className="h-9 w-9 rounded-full bg-muted" />
-                  <div className="h-9 w-9 rounded-full bg-muted" />
-                </div>
-              </div>
-            </div>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <CardSkeleton key={i} />
           ))}
         </div>
       ) : filteredOrders.length === 0 ? (
@@ -190,7 +174,7 @@ export default function OrdersPage() {
           description="Probá ajustando el término de búsqueda o cambiando la pestaña de estado."
         />
       ) : (
-        <div className="grid gap-3">
+        <div className="grid gap-3 animate-in fade-in-50 slide-in-from-bottom-2 duration-300 ease-out">
           {filteredOrders.map((order) => {
             const config = getOrderStatusConfig(order.status)
             const phone = order.customers?.phone

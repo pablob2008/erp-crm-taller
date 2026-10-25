@@ -5,6 +5,7 @@ import { useSupabase } from "@/context/SupabaseProvider"
 import { SearchInput } from "@/components/ui/input"
 import { GlassIconButton } from "@/components/ui/glass-icon-button"
 import { PageLoader } from "@/components/ui/page-loader"
+import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
   ClipboardList,
@@ -74,19 +75,27 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background lg:flex-row">
-      {/* Mobile & Tablet Backdrop */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
+      {/* Mobile & Tablet Backdrop con disolución suave */}
+      <div
+        className={cn(
+          "fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ease-out",
+          isMobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setIsMobileMenuOpen(false)}
+      />
 
-      {/* Glass Sidebar con acento temático y halo de luz */}
+      {/* Glass Sidebar con acento temático y física de resorte Apple */}
       <aside
-        className={`fixed inset-y-4 left-4 z-50 w-64 flex-col rounded-2xl border border-theme-accent/40 shadow-[0_0_24px_0_hsl(var(--theme-accent)/0.16),0_8px_32px_0_hsl(var(--foreground)/0.06)] bg-background/90 backdrop-blur-xl py-3 transition-transform duration-300 lg:translate-x-0 lg:flex overflow-hidden ${
-          isMobileMenuOpen ? "translate-x-0 flex" : "-translate-x-[150%] hidden"
-        }`}
+        className={cn(
+          "fixed inset-y-4 left-4 z-50 w-64 flex-col rounded-2xl border border-theme-accent/40",
+          "shadow-[0_0_24px_0_hsl(var(--theme-accent)/0.16),0_8px_32px_0_hsl(var(--foreground)/0.06)]",
+          "bg-background/90 backdrop-blur-xl py-3 overflow-hidden",
+          "transition-all duration-300 ease-spring",
+          "lg:translate-x-0 lg:flex",
+          isMobileMenuOpen
+            ? "translate-x-0 flex shadow-[0_0_40px_0_hsl(var(--theme-accent)/0.25)]"
+            : "-translate-x-[150%] pointer-events-none lg:pointer-events-auto flex"
+        )}
       >
         {/* Shimmer superior en el sidebar */}
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none" />

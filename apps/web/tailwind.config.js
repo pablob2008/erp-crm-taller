@@ -70,12 +70,19 @@ module.exports = {
         "1.75": "1.75px",
         "2": "2px",
       },
+      transitionTimingFunction: {
+        spring: "cubic-bezier(0.16, 1, 0.3, 1)",
+      },
       boxShadow: {
         neu: "var(--shadow-neu)",
         "neu-inset": "var(--shadow-neu-inset)",
         "theme-glow": "0 0 24px 0 hsl(var(--theme-accent) / 0.16)",
       },
       keyframes: {
+        shimmer: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(100%)" },
+        },
         "accordion-down": {
           from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
@@ -86,6 +93,7 @@ module.exports = {
         },
       },
       animation: {
+        shimmer: "shimmer 1.8s infinite ease-in-out",
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
