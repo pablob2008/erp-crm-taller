@@ -6,6 +6,8 @@ import { PriceDisplay } from "@/components/ui/price-display"
 import { PaymentMethodBadge } from "@/components/ui/payment-method-badge"
 import { SearchInput } from "@/components/ui/input"
 import { SegmentedControl } from "@/components/ui/segmented-control"
+import { GlassCard } from "@/components/ui/glass-card"
+import { Button } from "@/components/ui/button"
 import { formatDateTime } from "@/lib/formatters"
 
 export type OriginFilter = "all" | "sales" | "orders"
@@ -232,8 +234,140 @@ export function UnifiedVouchersWidget({
         />
       </div>
 
-      {/* Unified Table */}
-      <div className="overflow-x-auto">
+      {/* ── Mobile View: Stacked GlassCards (< sm) ───────────────────────── */}
+      <div className="grid gap-3 sm:hidden">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-28 rounded-2xl bg-muted/40 animate-pulse border border-border/40"
+            />
+          ))
+        ) : filteredVouchers.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">
+            {search
+              ? "No se encontraron operaciones con ese criterio."
+              : "No hay comprobantes ni órdenes en el período seleccionado."}
+          </div>
+        ) : (
+          filteredVouchers.map((v) => (
+            <GlassCard
+              key={`m-${v.targetType}-${v.id}`}
+              accent={
+                v.origin === "combined"
+                  ? "blue"
+                  : v.origin === "order"
+                  ? "purple"
+                  : undefined
+              }
+              accentStripe={v.origin !== "sale"}
+              padding="sm"
+              className="space-y-3"
+            >
+              {/* Header row: ID + Origin + Date */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-mono font-bold text-xs text-foreground">
+                    #{v.identifier}
+                  </span>
+                  {v.origin === "combined" ? (
+                    <Badge variant="info" size="sm">
+                      Taller + Mostrador
+                    </Badge>
+                  ) : v.origin === "order" ? (
+                    <Badge variant="purple" size="sm">
+                      Taller
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" size="sm">
+                      Mostrador
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {formatDateTime(v.date)}
+                </span>
+              </div>
+
+              {/* Customer + Total */}
+              <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/20">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {v.customerName}
+                  </p>
+                  {v.customerDoc && (
+                    <p className="text-[11px] text-muted-foreground font-mono">
+                      Doc: {v.customerDoc}
+                    </p>
+                  )}
+                  {v.description && (
+                    <p className="text-[10px] text-muted-foreground italic truncate">
+                      {v.description}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <PriceDisplay amount={v.total} size="lg" />
+                </div>
+              </div>
+
+              {/* Fiscal status + Action buttons row */}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/20">
+                <div>
+                  {v.isVoided ? (
+                    <Badge variant="destructive" size="sm">
+                      Anulado
+                    </Badge>
+                  ) : v.isFiscal ? (
+                    <Badge variant="success" size="sm" className="gap-1 font-semibold">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Factura C</span>
+                    </Badge>
+                  ) : (
+                    <Badge variant="muted" size="sm">
+                      Ticket X (No fiscal)
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {!v.isFiscal && !v.isVoided && (
+                    <Button
+                      size="sm"
+                      onClick={() => onEmitInvoice(v.targetType, v.id)}
+                      disabled={emittingId === v.id || !!emittingId}
+                      className="h-8 px-2.5 text-xs gap-1.5 rounded-xl"
+                    >
+                      {emittingId === v.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <FileText className="w-3 h-3" />
+                      )}
+                      <span>Facturar</span>
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (v.targetType === "sale") onReprintSale(v.id)
+                      else if (onReprintOrder) onReprintOrder(v.id)
+                    }}
+                    disabled={reprintingId === v.id}
+                    className="h-8 px-2.5 text-xs gap-1.5 rounded-xl border-border/50"
+                  >
+                    <Printer className="w-3 h-3" />
+                    <span>Imprimir</span>
+                  </Button>
+                </div>
+              </div>
+            </GlassCard>
+          ))
+        )}
+      </div>
+
+      {/* ── Desktop & Tablet View: 7-column Table (>= sm) ────────────────── */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border/40 text-xs font-semibold text-muted-foreground">

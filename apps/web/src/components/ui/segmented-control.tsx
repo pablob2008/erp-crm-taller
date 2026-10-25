@@ -47,6 +47,7 @@ export function SegmentedControl<T extends string = string>({
     <div
       className={cn(
         "inline-flex items-center gap-1 rounded-2xl bg-background/50 border border-border/40 backdrop-blur-md p-1 shadow-sm select-none",
+        "max-w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
         fullWidth ? "w-full flex" : "w-fit",
         className
       )}
@@ -61,7 +62,7 @@ export function SegmentedControl<T extends string = string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={cn(
-              "flex items-center justify-center transition-all duration-150",
+              "flex items-center justify-center whitespace-nowrap shrink-0 transition-all duration-150",
               sizeClasses,
               fullWidth ? "flex-1" : "",
               isActive

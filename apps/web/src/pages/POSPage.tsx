@@ -22,7 +22,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { FileText, Loader2, CheckCircle2, XCircle } from "lucide-react"
+import { FileText, Loader2, CheckCircle2, XCircle, ShoppingCart } from "lucide-react"
+import { GlassCard } from "@/components/ui/glass-card"
+import { formatPrice } from "@/lib/formatters"
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 
@@ -336,19 +338,65 @@ export default function POSPage() {
           />
 
           {/* Right: Ticket */}
-          <TicketPanel
-            ticketState={ticketState}
-            subtotal={subtotal}
-            isCheckingOut={isCheckingOut}
-            onIncrement={(tempId) => dispatch({ type: "INCREMENT_QTY", tempId })}
-            onDecrement={(tempId) => dispatch({ type: "DECREMENT_QTY", tempId })}
-            onRemove={(tempId) => dispatch({ type: "REMOVE_ITEM", tempId })}
-            onSetPaymentMethod={(method) =>
-              dispatch({ type: "SET_PAYMENT_METHOD", method })
-            }
-            onCheckout={handleCheckout}
-          />
+          <div id="pos-ticket-panel">
+            <TicketPanel
+              ticketState={ticketState}
+              subtotal={subtotal}
+              isCheckingOut={isCheckingOut}
+              onIncrement={(tempId) => dispatch({ type: "INCREMENT_QTY", tempId })}
+              onDecrement={(tempId) => dispatch({ type: "DECREMENT_QTY", tempId })}
+              onRemove={(tempId) => dispatch({ type: "REMOVE_ITEM", tempId })}
+              onSetPaymentMethod={(method) =>
+                dispatch({ type: "SET_PAYMENT_METHOD", method })
+              }
+              onCheckout={handleCheckout}
+            />
+          </div>
         </div>
+
+        {/* Floating Mobile Cart Bar (< lg) */}
+        {ticketState.items.length > 0 && (
+          <div className="fixed bottom-4 left-4 right-4 z-30 lg:hidden">
+            <GlassCard
+              accent="green"
+              accentStripe
+              padding="sm"
+              onClick={() => {
+                const el = document.getElementById("pos-ticket-panel")
+                el?.scrollIntoView({ behavior: "smooth" })
+              }}
+              className="flex items-center justify-between shadow-[0_8px_30px_0_hsl(var(--kpi-green)/0.3)] bg-background/95 border-kpi-green/50 cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-kpi-green/20 text-kpi-green border border-kpi-green/30">
+                  <ShoppingCart className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">
+                    Ticket ({ticketState.items.length} {ticketState.items.length === 1 ? "ítem" : "ítems"})
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Tocar para ver y cobrar</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-bold text-base text-kpi-green">
+                  {formatPrice(subtotal)}
+                </span>
+                <Button
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const el = document.getElementById("pos-ticket-panel")
+                    el?.scrollIntoView({ behavior: "smooth" })
+                  }}
+                  className="h-8 px-3 rounded-xl gap-1 text-xs font-bold bg-kpi-green text-white hover:bg-kpi-green/90"
+                >
+                  Cobrar
+                </Button>
+              </div>
+            </GlassCard>
+          </div>
+        )}
 
         {/* Modals */}
         <DeliverOrderModal

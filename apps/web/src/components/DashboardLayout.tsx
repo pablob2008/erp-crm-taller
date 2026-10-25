@@ -73,18 +73,18 @@ export default function DashboardLayout() {
   const userInitial = user?.email?.charAt(0)?.toUpperCase() || "U"
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background md:flex-row">
-      {/* Mobile Backdrop */}
+    <div className="flex min-h-screen w-full flex-col bg-background lg:flex-row">
+      {/* Mobile & Tablet Backdrop */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 md:hidden"
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Glass Sidebar con acento temático */}
       <aside
-        className={`fixed inset-y-4 left-4 z-50 w-64 flex-col rounded-2xl border border-theme-accent/30 shadow-[0_8px_32px_0_hsl(var(--theme-accent)/0.10)] bg-background/85 backdrop-blur-xl py-3 transition-transform duration-300 md:translate-x-0 md:flex overflow-hidden ${
+        className={`fixed inset-y-4 left-4 z-50 w-64 flex-col rounded-2xl border border-theme-accent/30 shadow-[0_8px_32px_0_hsl(var(--theme-accent)/0.10)] bg-background/85 backdrop-blur-xl py-3 transition-transform duration-300 lg:translate-x-0 lg:flex overflow-hidden ${
           isMobileMenuOpen ? "translate-x-0 flex" : "-translate-x-[150%] hidden"
         }`}
       >
@@ -94,7 +94,7 @@ export default function DashboardLayout() {
         {/* Shimmer superior en el sidebar */}
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
 
-        <div className="md:hidden absolute right-3 top-3 z-10">
+        <div className="lg:hidden absolute right-3 top-3 z-10">
           <GlassIconButton
             icon={<X className="h-4 w-4" />}
             size="sm"
@@ -136,14 +136,14 @@ export default function DashboardLayout() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex flex-1 flex-col md:ml-[288px] min-w-0 overflow-x-hidden">
+      {/* Main Content Area — Full width on mobile & iPad portrait, left margin only on desktop (lg:ml-[288px]) */}
+      <main className="flex flex-1 flex-col lg:ml-[288px] min-w-0 overflow-x-hidden">
         {/* Sticky Glass Header con acento de borde */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-background/85 backdrop-blur-md px-4 lg:h-[60px] lg:px-8 border-b border-theme-accent/20 mb-2">
           <GlassIconButton
             icon={<Menu className="h-5 w-5" />}
             onClick={() => setIsMobileMenuOpen(true)}
-            className="md:hidden shrink-0"
+            className="lg:hidden shrink-0"
             title="Abrir Menú"
           />
 
@@ -193,10 +193,10 @@ export default function DashboardLayout() {
       {/* Floating Action Button (FAB) con color temático */}
       <Link
         to="/orders/new"
-        className="fixed bottom-8 right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-theme-accent text-white shadow-[0_0_24px_0_hsl(var(--theme-accent)/0.45)] transition-transform hover:scale-105 active:scale-95 no-print"
+        className="fixed bottom-5 right-5 sm:bottom-8 sm:right-8 z-40 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-theme-accent text-white shadow-[0_0_24px_0_hsl(var(--theme-accent)/0.45)] transition-transform hover:scale-105 active:scale-95 no-print"
         title="Nueva Orden de Trabajo"
       >
-        <Plus className="h-6 w-6" />
+        <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
       </Link>
 
       <div className="no-print">
