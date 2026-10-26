@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Printer, FileText, CheckCircle2, Loader2, Receipt, Wrench, ShoppingBag } from "lucide-react"
 import type { SalesHistoryItem, UnbilledOrderItem } from "@/lib/services/dashboard"
 import { Badge } from "@/components/ui/badge"
 import { PriceDisplay } from "@/components/ui/price-display"
 import { PaymentMethodBadge } from "@/components/ui/payment-method-badge"
-import { SearchInput } from "@/components/ui/input"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
@@ -54,7 +54,8 @@ export function UnifiedVouchersWidget({
   onEmitInvoice,
   emittingId,
 }: UnifiedVouchersWidgetProps) {
-  const [search, setSearch] = useState("")
+  const [searchParams] = useSearchParams()
+  const search = searchParams.get("q") ?? ""
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all")
   const [fiscalFilter, setFiscalFilter] = useState<FiscalFilter>("all")
 
@@ -152,28 +153,17 @@ export function UnifiedVouchersWidget({
   return (
     <div className="flex flex-col rounded-2xl border border-border/40 bg-background/40 p-5 shadow-sm backdrop-blur-md space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/30">
-        <div className="flex items-center gap-2.5">
-          <div className="rounded-xl bg-primary/10 p-2 text-primary border border-primary/20">
-            <Receipt className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-foreground">
-              Comprobantes y Facturación ARCA
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Ventas de mostrador y órdenes de taller del período (Tickets X y Facturas C oficiales)
-            </p>
-          </div>
+      <div className="flex items-center gap-2.5 pb-3 border-b border-border/30">
+        <div className="rounded-xl bg-primary/10 p-2 text-primary border border-primary/20">
+          <Receipt className="h-5 w-5" />
         </div>
-
-        <div className="w-full sm:w-64">
-          <SearchInput
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por Ticket, orden o cliente..."
-            className="h-8 text-xs"
-          />
+        <div>
+          <h3 className="text-base font-bold text-foreground">
+            Comprobantes y Facturación ARCA
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Ventas de mostrador y órdenes de taller del período (Tickets X y Facturas C oficiales)
+          </p>
         </div>
       </div>
 

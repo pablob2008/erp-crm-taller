@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { Package, ShoppingCart, AlertTriangle, Layers, RefreshCw, Wrench, Plus } from "lucide-react"
 import { useSupabase } from "@/context/SupabaseProvider"
 import {
@@ -15,7 +15,6 @@ import { PurchaseExpenseModal } from "@/components/purchases/PurchaseExpenseModa
 import { AddPurchaseModal } from "@/components/purchases/AddPurchaseModal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { SearchInput } from "@/components/ui/input"
 
 const STATUS_TABS = ["active", "pending", "all"] as const
 type StatusTab = typeof STATUS_TABS[number]
@@ -75,7 +74,8 @@ export function PurchasesBoard() {
   const [purchases, setPurchases] = useState<UnifiedPurchaseItem[]>([])
   const [purchasesLoading, setPurchasesLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<StatusTab>("active")
-  const [search, setSearch] = useState("")
+  const [searchParams] = useSearchParams()
+  const search = searchParams.get("q") ?? ""
   const [modalItem, setModalItem] = useState<UnifiedPurchaseItem | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
@@ -152,33 +152,24 @@ export function PurchasesBoard() {
   return (
     <div className="space-y-6">
       {/* Header Actions for Purchases */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="w-full sm:w-72">
-            <SearchInput
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar repuesto, código, proveedor..."
-            />
-          </div>
-          <Button
-            variant="default"
-            className="rounded-xl h-9 gap-1.5 whitespace-nowrap shadow-sm"
-            onClick={() => setIsAddModalOpen(true)}
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Nueva Compra</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-xl h-9 w-9 text-muted-foreground hover:text-foreground shrink-0"
-            onClick={() => { loadKPIs(); loadPurchases() }}
-            title="Recargar"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="default"
+          className="rounded-xl h-9 gap-1.5 whitespace-nowrap shadow-sm"
+          onClick={() => setIsAddModalOpen(true)}
+        >
+          <Plus className="h-4 w-4" />
+          <span>Nueva Compra</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-xl h-9 w-9 text-muted-foreground hover:text-foreground shrink-0"
+          onClick={() => { loadKPIs(); loadPurchases() }}
+          title="Recargar"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* KPI Cards Grid */}

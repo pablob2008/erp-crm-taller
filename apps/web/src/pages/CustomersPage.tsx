@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { useSupabase } from "@/context/SupabaseProvider"
 import {
@@ -28,7 +28,6 @@ import {
 import { CustomerEditModal } from "@/components/customers/CustomerEditModal"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
-import { SearchInput } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
@@ -57,16 +56,13 @@ export default function CustomersPage() {
   const navigate = useNavigate()
 
   // URL-driven search
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const urlQuery = searchParams.get("q") ?? ""
 
   const [customers, setCustomers] = useState<CustomerWithHistory[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
-
-  const [inputValue, setInputValue] = useState(urlQuery)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Create & Edit Modal State
   const [createOpen, setCreateOpen] = useState(false)
@@ -80,10 +76,6 @@ export default function CustomersPage() {
     saleCount: number
   } | null>(null)
   const [deleting, setDeleting] = useState(false)
-
-  useEffect(() => {
-    setInputValue(urlQuery)
-  }, [urlQuery])
 
   const loadCustomers = useCallback(async () => {
     setLoading(true)
@@ -110,26 +102,6 @@ export default function CustomersPage() {
   useEffect(() => {
     loadCustomers()
   }, [loadCustomers])
-
-  const handleSearchChange = (value: string) => {
-    setInputValue(value)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      setPage(1)
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev)
-          if (value.trim()) {
-            next.set("q", value.trim())
-          } else {
-            next.delete("q")
-          }
-          return next
-        },
-        { replace: true }
-      )
-    }, 300)
-  }
 
   const handleDeleteClick = async (customer: CustomerWithHistory) => {
     setDeleteTarget(customer)
@@ -185,7 +157,7 @@ export default function CustomersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Universal Page Header with Search & New Customer Action */}
+      {/* Universal Page Header (búsqueda gobernada por el header superior) */}
       <PageHeader
         title="Directorio de Clientes"
         subtitle={
@@ -194,22 +166,13 @@ export default function CustomersPage() {
             : `${totalCount} ${totalCount === 1 ? "cliente registrado" : "clientes registrados"}`
         }
         actions={
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
-            <div className="w-full sm:w-80">
-              <SearchInput
-                value={inputValue}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Buscar por nombre, teléfono, DNI, email..."
-              />
-            </div>
-            <Button
-              onClick={() => setCreateOpen(true)}
-              className="gap-2 shrink-0 rounded-xl shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nuevo Cliente</span>
-            </Button>
-          </div>
+          <Button
+            onClick={() => setCreateOpen(true)}
+            className="gap-2 shrink-0 rounded-xl shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nuevo Cliente</span>
+          </Button>
         }
       />
 

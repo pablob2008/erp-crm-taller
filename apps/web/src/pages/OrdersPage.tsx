@@ -1,10 +1,9 @@
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useSupabase } from "@/context/SupabaseProvider"
 import { MessageCircle, Printer, ArrowRight, ClipboardList } from "lucide-react"
 import { OrderStatusTabs } from "@/components/orders/OrderStatusTabs"
 import { PageHeader } from "@/components/ui/page-header"
-import { SearchInput } from "@/components/ui/input"
 import { OrderStatusBadge } from "@/components/ui/order-status-badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { GlassCard } from "@/components/ui/glass-card"
@@ -47,32 +46,6 @@ export default function OrdersPage() {
 
   const [orders, setOrders] = useState<WorkOrder[]>([])
   const [loading, setLoading] = useState(true)
-
-  const [inputValue, setInputValue] = useState(urlQuery)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    setInputValue(urlQuery)
-  }, [urlQuery])
-
-  const handleSearchChange = (value: string) => {
-    setInputValue(value)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev)
-          if (value.trim()) {
-            next.set("q", value.trim())
-          } else {
-            next.delete("q")
-          }
-          return next
-        },
-        { replace: true }
-      )
-    }, 300)
-  }
 
   const handleStatusChange = (value: string) => {
     setSearchParams(
@@ -132,7 +105,7 @@ export default function OrdersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Universal Page Header with Search */}
+      {/* Universal Page Header (búsqueda gobernada por el header superior) */}
       <PageHeader
         title="Órdenes de Trabajo"
         subtitle={
@@ -141,15 +114,6 @@ export default function OrdersPage() {
             : `${filteredOrders.length} ${
                 filteredOrders.length === 1 ? "orden encontrada" : "órdenes encontradas"
               }`
-        }
-        actions={
-          <div className="w-full sm:w-72">
-            <SearchInput
-              value={inputValue}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Buscar orden, cliente, dispositivo..."
-            />
-          </div>
         }
       />
 

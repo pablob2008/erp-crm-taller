@@ -218,11 +218,11 @@ export function OverviewTab({
           </div>
 
           <div>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tel\u00e9fono / WhatsApp</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Teléfono / WhatsApp</span>
             <div className="flex items-center justify-between mt-0.5">
               <p className="font-medium text-foreground">
                 {order.customers?.phone || (
-                  <span className="text-muted-foreground italic text-sm">Sin tel\u00e9fono</span>
+                  <span className="text-muted-foreground italic text-sm">Sin teléfono</span>
                 )}
               </p>
               {order.customers?.phone && (
@@ -244,13 +244,13 @@ export function OverviewTab({
             <div>
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</span>
               <p className="font-medium text-foreground truncate mt-0.5">
-                {order.customers?.email || <span className="text-muted-foreground italic text-sm">\u2014</span>}
+                {order.customers?.email || <span className="text-muted-foreground italic text-sm">—</span>}
               </p>
             </div>
             <div>
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">CUIT / DNI</span>
               <p className="font-medium text-foreground mt-0.5">
-                {order.customers?.tax_id || <span className="text-muted-foreground italic text-sm">\u2014</span>}
+                {order.customers?.tax_id || <span className="text-muted-foreground italic text-sm">—</span>}
               </p>
             </div>
           </div>
@@ -285,22 +285,22 @@ export function OverviewTab({
             <div>
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Color</span>
               <p className="font-medium text-foreground mt-0.5">
-                {order.device_color || <span className="text-muted-foreground italic text-sm">\u2014</span>}
+                {order.device_color || <span className="text-muted-foreground italic text-sm">—</span>}
               </p>
             </div>
           </div>
 
           <div>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Condici\u00f3n Est\u00e9tica</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Condición Estética</span>
             <p className="font-medium text-foreground mt-0.5">
-              {order.aesthetic_condition || <span className="text-muted-foreground italic text-sm">\u2014</span>}
+              {order.aesthetic_condition || <span className="text-muted-foreground italic text-sm">—</span>}
             </p>
           </div>
 
           <div>
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Accesorios Entregados</span>
             <p className="font-medium text-foreground mt-0.5">
-              {order.accessories || <span className="text-muted-foreground italic text-sm">\u2014</span>}
+              {order.accessories || <span className="text-muted-foreground italic text-sm">—</span>}
             </p>
           </div>
         </div>
@@ -318,7 +318,7 @@ export function OverviewTab({
             <div className={`p-2 rounded-xl ${t.iconBg} ${t.iconText} border ${t.iconBorder}`}>
               <Wrench className="w-4 h-4" />
             </div>
-            <h3 className="font-bold text-foreground">Diagn\u00f3stico y Agenda</h3>
+            <h3 className="font-bold text-foreground">Diagnóstico y Agenda</h3>
           </div>
         </div>
 
@@ -331,9 +331,9 @@ export function OverviewTab({
               </p>
             </div>
             <div>
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Soluci\u00f3n / Diagn\u00f3stico Inicial</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Solución / Diagnóstico Inicial</span>
               <p className="text-sm font-medium text-foreground mt-1 bg-background/40 p-3 rounded-xl border border-border/40 shadow-sm backdrop-blur-md">
-                {order.suggested_solution || <span className="text-muted-foreground italic text-xs">Sin diagn\u00f3stico preliminar cargado</span>}
+                {order.suggested_solution || <span className="text-muted-foreground italic text-xs">Sin diagnóstico preliminar cargado</span>}
               </p>
             </div>
           </div>
@@ -346,7 +346,7 @@ export function OverviewTab({
                 <p className="font-medium text-foreground">
                   {order.created_at
                     ? new Date(order.created_at).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" })
-                    : <span className="text-muted-foreground italic text-sm">\u2014</span>}
+                    : <span className="text-muted-foreground italic text-sm">—</span>}
                 </p>
               </div>
             </div>
@@ -358,7 +358,7 @@ export function OverviewTab({
                 <p className="font-medium text-foreground">
                   {order.estimated_delivery_at
                     ? new Date(order.estimated_delivery_at).toLocaleDateString("es-AR", { dateStyle: "long" })
-                    : <span className="text-muted-foreground italic text-sm">\u2014</span>}
+                    : <span className="text-muted-foreground italic text-sm">—</span>}
                 </p>
               </div>
             </div>
@@ -440,7 +440,7 @@ export function OverviewTab({
                     <button 
                       className="flex items-center justify-center h-7 w-7 rounded-full text-kpi-red/70 hover:text-kpi-red hover:bg-kpi-red/15 transition-all" 
                       onClick={() => {
-                        if(confirm("\u00bfEliminar tarea?")) onDeleteTask(task.id);
+                        if (confirm("¿Eliminar tarea?")) onDeleteTask(task.id);
                       }}
                       title="Eliminar tarea"
                     >
@@ -486,7 +486,7 @@ export function OverviewTab({
             <div className={`p-2 rounded-xl ${t.iconBg} ${t.iconText} border ${t.iconBorder}`}>
               <MessageSquare className="w-4 h-4" />
             </div>
-            <h3 className="font-bold text-foreground">Notas y Bit\u00e1cora</h3>
+            <h3 className="font-bold text-foreground">Notas y Bitácora</h3>
           </div>
           <span className="text-xs text-muted-foreground">
             {order.work_order_notes?.length || 0} entradas
@@ -531,7 +531,7 @@ export function OverviewTab({
                       <button 
                         className="p-1 rounded-full text-kpi-red/70 hover:text-kpi-red" 
                         onClick={() => {
-                          if(confirm("\u00bfEliminar nota?")) onDeleteNote(note.id);
+                          if (confirm("¿Eliminar nota?")) onDeleteNote(note.id);
                         }}
                         title="Eliminar nota"
                       >
@@ -547,7 +547,7 @@ export function OverviewTab({
               </div>
             ))}
             {(!order.work_order_notes || order.work_order_notes.length === 0) && (
-              <p className="text-sm text-muted-foreground italic py-2 text-center">No hay notas en la bit\u00e1cora.</p>
+              <p className="text-sm text-muted-foreground italic py-2 text-center">No hay notas en la bitácora.</p>
             )}
           </div>
 

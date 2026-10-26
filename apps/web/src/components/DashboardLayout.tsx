@@ -1,5 +1,5 @@
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
-import { useState, Suspense } from "react"
+import { Outlet, Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
+import { useState, useMemo, useRef, useEffect, Suspense } from "react"
 import { ModeToggle } from "@/components/mode-toggle"
 import { useSupabase } from "@/context/SupabaseProvider"
 import { SearchInput } from "@/components/ui/input"
@@ -27,22 +27,112 @@ export default function DashboardLayout() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const [globalSearch, setGlobalSearch] = useState("")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchInput, setSearchInput] = useState(searchParams.get("q") ?? "")
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Sync header input whenever the URL or path changes externally
+  useEffect(() => {
+    setSearchInput(searchParams.get("q") ?? "")
+  }, [location.pathname, searchParams])
+
+  // Context-aware search configuration based on current route
+  const searchConfig = useMemo(() => {
+    const p = location.pathname
+    if (p.startsWith("/orders") && p !== "/orders/new") {
+      return {
+        enabled: true,
+        placeholder: "Buscar órdenes por número, cliente o equipo...",
+        route: "/orders",
+      }
+    }
+    if (p.startsWith("/customers")) {
+      return {
+        enabled: true,
+        placeholder: "Buscar clientes por nombre, teléfono o DNI...",
+        route: "/customers",
+      }
+    }
+    if (p.startsWith("/finance")) {
+      return {
+        enabled: true,
+        placeholder: "Buscar comprobantes por ticket, cliente o CAE...",
+        route: "/finance",
+      }
+    }
+    if (p.startsWith("/inventory")) {
+      return {
+        enabled: true,
+        placeholder: "Buscar repuesto en compras o stock...",
+        route: "/inventory",
+      }
+    }
+    if (p.startsWith("/pos")) {
+      return {
+        enabled: false,
+        placeholder: "Lector de código y búsqueda activa en mostrador...",
+        route: "/pos",
+      }
+    }
+    return {
+      enabled: true,
+      placeholder: "Buscar órdenes o clientes globales...",
+      route: "/orders",
+    }
+  }, [location.pathname])
+
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    debounceRef.current = setTimeout(() => {
+      const trimmed = value.trim()
+      const targetBase = searchConfig.route
+
+      if (location.pathname === targetBase) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev)
+            if (trimmed) {
+              next.set("q", trimmed)
+            } else {
+              next.delete("q")
+            }
+            return next
+          },
+          { replace: true }
+        )
+      } else if (trimmed) {
+        navigate(`${targetBase}?q=${encodeURIComponent(trimmed)}`)
+      }
+    }, 200)
+  }
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = searchInput.trim()
+    const targetBase = searchConfig.route
+    if (location.pathname === targetBase) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (trimmed) {
+            next.set("q", trimmed)
+          } else {
+            next.delete("q")
+          }
+          return next
+        },
+        { replace: true }
+      )
+    } else {
+      navigate(trimmed ? `${targetBase}?q=${encodeURIComponent(trimmed)}` : targetBase)
+    }
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-  }
-
-  /** Redirect to orders list with the global search term as a URL param */
-  const handleGlobalSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const q = globalSearch.trim()
-    if (q) {
-      navigate(`/orders?q=${encodeURIComponent(q)}`)
-    } else {
-      navigate("/orders")
-    }
   }
 
   const isActive = (path: string) => {
@@ -154,11 +244,12 @@ export default function DashboardLayout() {
           />
 
           <div className="w-full flex-1 max-w-md">
-            <form onSubmit={handleGlobalSearchSubmit}>
+            <form onSubmit={handleSearchSubmit}>
               <SearchInput
-                value={globalSearch}
-                onChange={(e) => setGlobalSearch(e.target.value)}
-                placeholder="Buscar órdenes, clientes..."
+                value={searchInput}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder={searchConfig.placeholder}
+                disabled={!searchConfig.enabled}
               />
             </form>
           </div>

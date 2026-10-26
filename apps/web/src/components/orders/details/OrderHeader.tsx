@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ChevronDown, ArrowLeft, Pencil, Trash2, Share2, MessageCircle, Printer } from "lucide-react"
+import { ChevronDown, ArrowLeft, Pencil, Trash2, Share2, Printer } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { getOrderStatusConfig } from "@/lib/constants/order-status"
 import { formatPrice } from "@/lib/formatters"
@@ -257,11 +257,6 @@ export function OrderHeader({ order, onUpdateStatus, onEditOrder, onDeleteOrder 
     window.open(buildWhatsAppUrl(customerPhone, text), '_blank');
   }
 
-  const handleWhatsAppChat = () => {
-    if (!customerPhone) return;
-    window.open(buildWhatsAppUrl(customerPhone), '_blank');
-  }
-
   // ─── Task 3.5: Print ──────────────────────────────────────────────────────
   const handlePrint = () => {
     window.print();
@@ -309,15 +304,6 @@ export function OrderHeader({ order, onUpdateStatus, onEditOrder, onDeleteOrder 
             className="flex items-center justify-center w-9 h-9 rounded-full bg-kpi-green/15 text-kpi-green border border-kpi-green/30 hover:bg-kpi-green/25 hover:scale-110 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shadow-sm"
           >
             <Share2 className="h-4 w-4" />
-          </button>
-
-          <button
-            title="Chat directo por WhatsApp"
-            onClick={handleWhatsAppChat}
-            disabled={!customerPhone}
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-kpi-green/15 text-kpi-green border border-kpi-green/30 hover:bg-kpi-green/25 hover:scale-110 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shadow-sm"
-          >
-            <MessageCircle className="h-4 w-4" />
           </button>
 
           <button

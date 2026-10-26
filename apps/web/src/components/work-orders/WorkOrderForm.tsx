@@ -92,7 +92,7 @@ export function WorkOrderForm() {
             
             {/* 1. Selección de Cliente */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium border-b pb-2">1. Cliente</h3>
+              <h3 className="text-base font-bold text-foreground border-b border-border/30 pb-2">Cliente y Contacto</h3>
               <FormField
                 control={form.control}
                 name="customer_id"
@@ -113,7 +113,7 @@ export function WorkOrderForm() {
 
             {/* 2. Datos del Dispositivo */}
             <div className={`space-y-4 transition-opacity ${isCustomerSelected ? "opacity-100" : "opacity-50 pointer-events-none"}`}>
-              <h3 className="text-lg font-medium border-b pb-2">2. Datos del Equipo</h3>
+              <h3 className="text-base font-bold text-foreground border-b border-border/30 pb-2">Datos del Dispositivo</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -192,7 +192,7 @@ export function WorkOrderForm() {
 
             {/* 3. Problema y Solución */}
             <div className={`space-y-4 transition-opacity ${isCustomerSelected ? "opacity-100" : "opacity-50 pointer-events-none"}`}>
-              <h3 className="text-lg font-medium border-b pb-2">3. Detalles de Reparación</h3>
+              <h3 className="text-base font-bold text-foreground border-b border-border/30 pb-2">Detalles de la Reparación</h3>
               
               <FormField
                 control={form.control}
@@ -225,7 +225,7 @@ export function WorkOrderForm() {
 
             {/* 4. Presupuesto y Tiempos */}
             <div className={`space-y-4 transition-opacity ${isCustomerSelected ? "opacity-100" : "opacity-50 pointer-events-none"}`}>
-              <h3 className="text-lg font-medium pb-2 mb-2">4. Presupuesto y Tiempos</h3>
+              <h3 className="text-base font-bold text-foreground border-b border-border/30 pb-2">Presupuesto y Tiempos Estimados</h3>
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField
