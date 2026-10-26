@@ -34,6 +34,7 @@ import { OrderStatusBadge } from "@/components/ui/order-status-badge"
 import { KpiMetricCard } from "@/components/ui/kpi-metric-card"
 import { PriceDisplay } from "@/components/ui/price-display"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { formatPrice, formatDate } from "@/lib/formatters"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -130,11 +131,11 @@ export default function CustomerProfilePage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-28 rounded-2xl bg-muted/40" />
+      <div className="space-y-6">
+        <Skeleton className="h-28 rounded-2xl" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="h-64 rounded-2xl bg-muted/30" />
-          <div className="h-64 md:col-span-2 rounded-2xl bg-muted/30" />
+          <Skeleton className="h-64 rounded-2xl" />
+          <Skeleton className="h-64 md:col-span-2 rounded-2xl" />
         </div>
       </div>
     )
@@ -148,7 +149,7 @@ export default function CustomerProfilePage() {
   const isActive = orderCount > 0 && !isVip
 
   return (
-    <div className="relative space-y-6 pb-12">
+    <div className="relative space-y-6 pb-12 animate-in fade-in-50 duration-200">
       {/* Ambient background glows */}
       <div className="pointer-events-none absolute -top-10 -left-10 w-80 h-80 rounded-full bg-kpi-blue/6 blur-3xl -z-10" />
       <div className="pointer-events-none absolute top-60 right-0 w-64 h-64 rounded-full bg-kpi-amber/5 blur-3xl -z-10" />

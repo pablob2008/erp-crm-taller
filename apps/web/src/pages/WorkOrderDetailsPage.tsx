@@ -29,6 +29,7 @@ import type { BranchInfo } from "@/lib/services/branches"
 
 import { OrderHeader } from "@/components/orders/details/OrderHeader"
 import { OrderTabs } from "@/components/orders/details/OrderTabs"
+import { OrderDetailsSkeleton } from "@/components/orders/details/OrderDetailsSkeleton"
 import { OverviewTab } from "@/components/orders/details/tabs/OverviewTab"
 import { PurchasesTab } from "@/components/orders/details/tabs/PurchasesTab"
 import { FinancesTab } from "@/components/orders/details/tabs/FinancesTab"
@@ -299,7 +300,7 @@ export default function WorkOrderDetailsPage() {
   }
 
   if (loading) {
-    return <div className="p-8 text-center text-muted-foreground">Cargando detalles de la orden...</div>
+    return <OrderDetailsSkeleton />
   }
 
   if (!order) {
@@ -312,7 +313,7 @@ export default function WorkOrderDetailsPage() {
       <PrintableTicket order={order} branch={branch} />
 
       {/* ── Screen-only interactive content (hidden when printing) ── */}
-      <div className="relative no-print max-w-5xl mx-auto pb-12 space-y-6">
+      <div className="relative no-print max-w-5xl mx-auto pb-12 space-y-6 animate-in fade-in-50 duration-200">
         {/* Ambient background glows */}
         <div className="pointer-events-none absolute -top-10 -left-10 w-80 h-80 rounded-full bg-kpi-blue/6 blur-3xl -z-10" />
         <div className="pointer-events-none absolute top-60 right-0 w-64 h-64 rounded-full bg-kpi-amber/5 blur-3xl -z-10" />

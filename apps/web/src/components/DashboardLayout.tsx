@@ -188,8 +188,8 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        {/* Dashboard Body / Outlet */}
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-4">
+        {/* Dashboard Body / Outlet con disolución suave al cambiar de ruta */}
+        <div key={location.pathname} className="flex-1 space-y-4 p-4 md:p-8 pt-4 animate-in fade-in-50 duration-200">
           <Suspense fallback={<PageLoader />}>
             <Outlet />
           </Suspense>

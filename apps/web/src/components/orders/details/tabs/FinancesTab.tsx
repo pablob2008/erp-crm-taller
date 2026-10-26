@@ -520,34 +520,38 @@ export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpe
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Finanzas y Movimientos</CardTitle>
           {/* Task 4.3: Action Buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
-              className="shadow-sm border border-border/40"
+              className="gap-1.5 border-border/40 hover:bg-accent shadow-sm"
               onClick={() => setPaymentOpen(true)}
             >
-              <DollarSign className="h-4 w-4 mr-1" />
-              Registrar Pago
+              <DollarSign className="h-4 w-4 text-kpi-green" />
+              <span>Registrar Pago</span>
             </Button>
+
             <Button
               variant="outline"
               size="sm"
-              className="shadow-sm border border-border/40"
+              className="gap-1.5 border-border/40 hover:bg-accent shadow-sm"
               onClick={() => setExpenseOpen(true)}
             >
-              <PlusCircle className="h-4 w-4 mr-1" />
-              Registrar Gasto
+              <PlusCircle className="h-4 w-4 text-kpi-red" />
+              <span>Registrar Gasto</span>
             </Button>
+
             <Button
+              variant="outline"
               size="sm"
-              className="shadow-sm border border-border/40 backdrop-blur-md"
+              className="gap-1.5 border-kpi-green/40 text-kpi-green bg-kpi-green/10 hover:bg-kpi-green/20 font-semibold shadow-sm"
               onClick={() => setDeliverOpen(true)}
-              disabled={order.status === 'delivered'}
+              disabled={order.status === "delivered"}
             >
-              <Truck className="h-4 w-4 mr-1" />
-              Entregar Orden
+              <Truck className="h-4 w-4" />
+              <span>Entregar Orden</span>
             </Button>
+
             {/* Botón Emitir Factura Electrónica blindado */}
             {invoice ? (
               <Badge variant="success" size="lg" className="gap-1.5 h-9 px-3">
@@ -556,9 +560,9 @@ export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpe
               </Badge>
             ) : (
               <Button
-                variant="default"
+                variant="outline"
                 size="sm"
-                className="shadow-sm border border-border/40"
+                className="gap-1.5 border-theme-accent/40 text-theme-accent bg-theme-accent/10 hover:bg-theme-accent/20 font-semibold shadow-sm"
                 onClick={handleEmitInvoice}
                 disabled={emitting || invoiceLoading || !isOrderTerminal}
                 title={
@@ -568,9 +572,9 @@ export function FinancesTab({ order, onUpdatePayment, onDeletePayment, onAddExpe
                 }
               >
                 {emitting ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <FileText className="h-4 w-4 mr-1" />
+                  <FileText className="h-4 w-4" />
                 )}
                 <span>Emitir Factura</span>
               </Button>

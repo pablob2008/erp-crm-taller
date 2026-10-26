@@ -137,7 +137,7 @@ export default function OrdersPage() {
         title="Órdenes de Trabajo"
         subtitle={
           loading
-            ? "Cargando órdenes..."
+            ? undefined
             : `${filteredOrders.length} ${
                 filteredOrders.length === 1 ? "orden encontrada" : "órdenes encontradas"
               }`

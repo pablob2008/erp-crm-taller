@@ -12,7 +12,7 @@ const glassCardVariants = cva(
         default: "",
         subtle: "bg-background/25 border-border/30",
         interactive:
-          "cursor-pointer hover:bg-background/70 hover:border-primary/50 hover:shadow-md hover:scale-[1.01] hover:brightness-105 active:scale-[0.98] active:brightness-95 transition-all duration-150 ease-out",
+          "cursor-pointer hover:bg-background/70 hover:border-primary/50 hover:shadow-md transition-all duration-150",
         glow: "",
       },
       padding: {

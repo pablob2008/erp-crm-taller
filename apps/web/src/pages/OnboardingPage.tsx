@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import { PageLoader } from '@/components/ui/page-loader'
 import { Package } from 'lucide-react'
 
 export default function OnboardingPage() {
@@ -83,7 +84,7 @@ export default function OnboardingPage() {
   }
 
   if (checking) {
-    return <div className="flex h-screen items-center justify-center">Cargando...</div>
+    return <PageLoader fullscreen />
   }
 
   return (

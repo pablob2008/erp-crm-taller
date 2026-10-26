@@ -190,7 +190,7 @@ export default function CustomersPage() {
         title="Directorio de Clientes"
         subtitle={
           loading
-            ? "Cargando clientes..."
+            ? undefined
             : `${totalCount} ${totalCount === 1 ? "cliente registrado" : "clientes registrados"}`
         }
         actions={

@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Pencil, Trash2, Check, X } from "lucide-react"
+import { Pencil, Trash2, Check, X, Plus } from "lucide-react"
 import { useState } from "react"
 import { Label } from "@/components/ui/label"
 import { PurchaseExpenseModal } from "@/components/purchases/PurchaseExpenseModal"
@@ -70,8 +70,13 @@ export function PurchasesTab({ order, onAddItem, onUpdateItem, onDeleteItem, onM
             <Label className="text-xs text-muted-foreground mb-1 block">Cant.</Label>
             <Input type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(Number(e.target.value))} className="bg-background/50 border border-border/40 shadow-sm" />
           </div>
-          <Button onClick={handleAddItem} className="bg-primary shadow-sm hover:scale-105 transition-all hover:bg-primary/90">
-            Agregar
+          <Button
+            variant="outline"
+            onClick={handleAddItem}
+            className="border-primary/40 text-primary bg-primary/10 hover:bg-primary/20 shadow-sm font-semibold gap-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Agregar</span>
           </Button>
         </div>
 
